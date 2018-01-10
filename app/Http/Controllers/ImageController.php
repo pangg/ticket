@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Model\RandCode;
+use App\Model\RandCode;
 use Illuminate\Routing\Controller;
 
 class ImageController extends Controller
