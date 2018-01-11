@@ -86,8 +86,8 @@ class Ticket extends Command
     public function handle()
     {
         //
-        $username = '1103135691@qq.com';
-        $password = '953934aq';
+        $username = '';
+        $password = '';
         $cookieArray = [];
         $body = '';
 //        $train_date = $this->ask('请输入去程日期 格式：' . date('Y-m-d'));
@@ -122,9 +122,9 @@ class Ticket extends Command
             }
             $this->error('address is error');
         }
-        $name = '邬韬伟';
-        $idCard = '360124199302102432';
-        $phone = '15728118673';
+        $name = '';
+        $idCard = '';
+        $phone = '';
         $repeatSubmitToken = '';
         $ticketInfoForPassengerForm = '';
         $loginPost = 'https://kyfw.12306.cn/passport/web/login';
