@@ -15,6 +15,6 @@ class ImageController extends Controller
 
             return abort(404);
         }
-        return view('img',compact('randCode'));
+        return view('img',compact('randCode','id'));
     }
 }

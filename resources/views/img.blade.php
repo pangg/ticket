@@ -12,6 +12,7 @@
 <img src="{{$randCode->path}}" alt="" id="image">
 <label for="" id="label"></label>
 <button type="button" onclick="$('#label').html('')">清除</button>
+<a href="{{URL::to('/image/'.($id + 1))}}">下一张</a>
 <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script>
 <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 
@@ -31,9 +32,9 @@
         var text = $('#label').html();
         if (text == '') {
 
-            $('#label').html(xSpan + "," + ySpan)
+            $('#label').html(xSpan + "," + (ySpan-30))
         } else {
-            $('#label').html(text + "," + xSpan + "," + ySpan)
+            $('#label').html(text + "," + xSpan + "," + (ySpan-30))
         }
     })
 </script>
