@@ -40,60 +40,48 @@ class VerificationCode extends Command
     {
         //
         $date = $this->argument('date');
+        $body = '';
+        $head = '';
+        for ($i = 1; $i <= 1000; $i++) {
 
-        $times = 0;
-        while (true) {
+            $imgUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 9999);
+            $this->request($imgUrl, true, [], false, $body, $head);
+            if ($body != '' && $head != '') {
 
-            $imgUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&'.mt_rand(0,9999);
-            $res = $this->request($imgUrl,true,[],false);
-            if ($res == '') {
-
-                continue;
-            } else {
-
-                preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $res, $matches);
+                preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $head, $matches);
                 if (count($matches) == 2) {
 
-                    $imgKey = explode('=',$matches[1][1])[1];
+                    $imgKey = explode('=', $matches[1][1])[1];
 
                     $baseDir = "/uploads/img/{$date}/";
 
-                    $dir = app()->publicPath().$baseDir;
+                    $dir = app()->publicPath() . $baseDir;
                     if (!is_dir($dir)) {
 
-                        mkdir($dir,0777,true);
+                        mkdir($dir, 0777, true);
                     }
                     $file = "{$dir}{$imgKey}.jpeg";
 
                     if (!file_exists($file)) {
 
                         $f = fopen($file, 'w+');
-                        $img = explode("\r\n\r\n", $res, 2);
-                        fwrite($f, $img[1]);
+                        $img = $body;
+                        fwrite($f, $img);
                         fclose($f);
                         $randCode = new RandCode();
                         $randCode->key = $imgKey;
                         $randCode->value = '';
-                        $randCode->path = $baseDir."{$imgKey}.jpeg";
+                        $randCode->path = $baseDir . "{$imgKey}.jpeg";
                         $randCode->save();
-                    } else {
-
-                        $times++;
-                        echo "累计命中 {$times} 次\n";
-                        if ($times > 10) {
-
-                            exit(0);
-                        }
                     }
                 }
-
             }
-
         }
 
     }
 
-    private function request(string $url, bool $get = false, array $data = [], bool $follow = false): string
+    private function request(string $url, bool $get = false, array $data = [], bool $follow = false,
+                             string &$body, string &$head): string
     {
 
         $curl = curl_init();
@@ -138,7 +126,9 @@ class VerificationCode extends Command
             curl_close($curl);
             return '';
         } else {
-
+            $headerSize = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+            $head = substr($res, 0, $headerSize);
+            $body = substr($res, $headerSize);
             curl_close($curl);
             return $res;
         }
