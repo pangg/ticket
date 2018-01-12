@@ -82,8 +82,8 @@ class Ticket extends Command
     public function handle()
     {
         //
-        $username = '';
-        $password = '';
+        $username = $this->ask('12306 用户名');
+        $password = $this->secret('12306 密码');
         $cookieArray = [];
         $head = '';
         $body = '';
@@ -119,403 +119,319 @@ class Ticket extends Command
             }
             $this->error('address is error');
         }
-        $name = '';
-        $idCard = '';
-        $phone = '';
-        $repeatSubmitToken = '';
         $ticketInfoForPassengerForm = '';
-        $loginPost = 'https://kyfw.12306.cn/passport/web/login';
-        $initUrl = 'https://kyfw.12306.cn/otn/login/init';
-        $this->request($initUrl, true, [], false, $cookieArray, $body, $head);
-        Yan:
-        $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&amp;rand=sjrand&;' . mt_rand(0, 999);
-        while (true) {
 
-            $this->request($yanUrl, true, [], false, $cookieArray, $body, $head);
-            if ($body !== '') {
+        if ($this->checkUser($username, $password, $cookieArray)) {
 
-                break;
-            }
-        }
-        preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $head, $matches);
-        if (count($matches) < 2) {
+            //查询车次
+            tripsFind:
+            $this->request('https://kyfw.12306.cn/otn/leftTicket/queryZ', true, [
+                'leftTicketDTO.train_date' => $train_date,
+                'leftTicketDTO.from_station' => $from_code,
+                'leftTicketDTO.to_station' => $to_code,
+                'purpose_codes' => 'ADULT'
+            ], false, $cookieArray, $body, $head);
+            $tripsJson = json_decode($body, true);
+            if ($tripsJson['httpstatus'] == 200) {
 
-            $this->error('图片头部cookie < 2 重新获取');
-            goto Yan;
-        }
-        $this->info('获取验证码成功');
+                $headCol = [
+                    'cc' => '车次',
+                    'cf' => '出发时间',
+                    'dd' => '到达时间',
+                    'ls' => '历时',
+                    'swz' => '商务座/特等座',
+                    'ydz' => '一等座',
+                    'edz' => '二等座',
+                    'gjrw' => '高级软卧',
+                    'rw' => '软卧',
+                    'dw' => '动卧',
+                    'yw' => '硬卧',
+                    'rz' => '软座',
+                    'yz' => '硬座',
+                    'wz' => '无座',
+                    'qt' => '其他',
+                    'ok' => '是否可订票',
+                ];
 
-        $imgKey = explode('=', $matches[1][1])[1];
+                $tripsResult = [];
+                //整理结果集 begin
+                foreach ($tripsJson['data']['result'] as $item) {
 
-        $date = date('Y-m-d', time());
-        $baseDir = "/uploads/img/{$date}/";
+                    $d = explode('|', $item);
 
-        $dir = app()->publicPath() . $baseDir;
-        if (!is_dir($dir)) {
+                    $tripsResult[] = [
+                        'cc' => $d[3],  //车次
+                        'cf' => $d[8],  //出发时间
+                        'dd' => $d[9],  //到达时间
+                        'ls' => $d[10], //历时
+                        'swz' => $d[32], //商务座/特等座 ok
+                        'ydz' => $d[31], //一等座 ok
+                        'edz' => $d[30], //二等座 ok
+                        'gjrw' => $d[21], //高级软卧 21
+                        'rw' => $d[23], //软卧 ok
+                        'dw' => $d[33], //动卧 ok
+                        'yw' => $d[28], //硬卧 ok
+                        'rz' => $d[3],  //软座
+                        'yz' => $d[29], //硬座 ok
+                        'wz' => $d[26], //无座 ok
+                        'qt' => $d[22], //其他 ok
+                        'ok' => $d[0] == '' ? false : true, //是否可订票 ok
+                    ];
 
-            mkdir($dir, 0777, true);
-        }
-        $has_rand = RandCode::where('key', '=', $imgKey)->first();
-        if ($has_rand == null) {
+                }
+                $this->info('已为你查询到以下车次');
+                $this->show($headCol, $tripsResult);
+                $tripsIndex = $this->ask('请选择有效车次序号!');
+                if (!isset($tripsResult[$tripsIndex - 1])) {
 
-            $this->info('未能在数据库中找到答案,请手动输入');
+                    $this->error('序号不存在请重试!');
+                    goto tripsFind;
+                }
+                //选定车次
+                $tripsCode = $tripsResult[$tripsIndex - 1]['cc'];
 
-            $file = "{$dir}{$imgKey}.jpeg";
-            $f = fopen($file, 'w+');
-            $img = $body;
-            fwrite($f, $img);
-            fclose($f);
-            $randCode = new RandCode();
-            $randCode->key = $imgKey;
-            $randCode->value = '';
-            $randCode->path = $baseDir . "{$imgKey}.jpeg";
-            $randCode->save();
-            $this->info('请打开页面' . URL::to('/image') . '/' . $randCode->id);
-            $lng = $this->ask('请输入图片坐标?');
-        } else {
-
-            if ($has_rand->value == '') {
-
-                $lng = $this->ask('请输入图片坐标?');
             } else {
-                $lng = $has_rand->value;
 
+                goto tripsFind;
+            }
+            $b = substr($tripsCode, 0, 1);
+            //这个地方是判断座位类别
+            $site_type = '';
+            if ($b == 'K') {
+                $site_type = '1';
+
+            } else if ($b == 'G' || $b == 'D') {
+
+                $site_type = 'O';
+            } else {
+                $this->error('没有匹配的座位类别');
+                exit(0);
             }
 
-        }
-        //验证码 验证
-        $checkYan = 'https://kyfw.12306.cn/passport/captcha/captcha-check'; //post
-        $checkData = [
-            'answer' => $lng,
-            'login_site' => 'E',
-            'rand' => 'sjrand'
-        ];
-        $this->request($checkYan, false, $checkData, false, $cookieArray, $body, $head);
-        $json = json_decode($body, true);
-        if ($json['result_code'] != "4") {
-
-            unset($cookieArray['_passport_session']);
-            unset($cookieArray['_passport_ct']);
-            $this->info($json['result_message']);
-            $this->info('准备重新获取验证码');
-            goto Yan;
-        } else {
-
-            $this->info('验证码通过...');
-
-            $this->info('开始请求登录...');
-
-            $loginData = [
-                'username' => $username,
-                'password' => $password,
-                'appid' => 'otn'
-            ];
-            $body = '';
-            LoginPost:
-            $this->request($loginPost, false, $loginData, false, $cookieArray, $body, $head);
-
+            //获取/确认乘车人
+            GetPassenger:
+            $passengersUrl = 'https://kyfw.12306.cn/otn/passengers/init';
+            $this->request($passengersUrl, false, ['_json_att' => ''], false, $cookieArray, $body, $head);
             if ($body == '') {
-
-                goto LoginPost;
+                goto GetPassenger;
             }
-            $this->info($body);
-            $loginJson = json_decode($body, true);
-            if ($loginJson['result_code'] == 0) {
+            preg_match('/passengers=\[.*\];/', $body, $mth);
+            $passengerObj = str_replace("passengers=", '', $mth[0]);
+            $passengerObj = str_replace(";", '', $passengerObj);
+            $passengerJsonStr = str_replace("'", '"', $passengerObj);
+            $passengerJson = json_decode($passengerJsonStr, true);
+            ShowUserList:
+            $passengerTicketStr = '';
+            $oldPassengerStr = '';
+            $passengerRes = [];
+            foreach ($passengerJson as $item) {
 
-                $cookieArray['uamtk'] = $loginJson['uamtk'];
-                $this->info('登录成功');
-                $uamtkUrl = 'https://kyfw.12306.cn/passport/web/auth/uamtk';
-                $this->request($uamtkUrl, false, ['appid' => 'otn'], false, $cookieArray, $body, $head);
-                $this->info($body);
-                $uamtkJson = json_decode($body, true);
-                if ($uamtkJson['result_code'] == 0) {
+                $headCol = [
+                    'name' => '姓名',
+                    'idCard' => '身份证号',
+                    'phone' => '手机号',
+                ];
+                $passengerRes[] = [
+                    'name' => $item['passenger_name'],
+                    'idCard' => $item['passenger_id_no'],
+                    'phone' => $item['mobile_no'],
+                ];
 
-                    $tk = $uamtkJson['newapptk'];
+            }
+            $this->show($headCol, $passengerRes);
+            $userList = $this->ask('请选择乘车人 如果多人请以英文逗号分隔 ","!');
+            $userArray = explode(',', $userList);
+            foreach ($userArray as $value) {
 
-                    $uamtkClientUrl = 'https://kyfw.12306.cn/otn/uamauthclient';
-                    $this->request($uamtkClientUrl, false, ['tk' => $tk], false, $cookieArray, $body, $head);
-                    $this->info('uamtkclient');
-                    $this->info($body);
-                    $uamtkClientJson = json_decode($body, true);
-                    if ($uamtkClientJson['result_code'] == 0) {
+                if (!isset($passengerRes[$value - 1])) {
 
-                        //todo 查询车次 选定车次 确认乘车人
-                        tripsFind:
-                        $tripsCode = '';
-                        $body = '';
-                        $this->request('https://kyfw.12306.cn/otn/leftTicket/queryZ', true, [
-                            'leftTicketDTO.train_date' => $train_date,
-                            'leftTicketDTO.from_station' => $from_code,
-                            'leftTicketDTO.to_station' => $to_code,
-                            'purpose_codes' => 'ADULT'
-                        ], false, $cookieArray, $body, $head);
-                        $tripsJson = json_decode($body, true);
-                        if ($tripsJson['httpstatus'] == 200) {
+                    $this->error('选择错误 请重新选择');
+                    goto ShowUserList;
+                }
 
-                            $headCol = [
-                                'cc' => '车次',
-                                'cf' => '出发时间',
-                                'dd' => '到达时间',
-                                'ls' => '历时',
-                                'swz' => '商务座/特等座',
-                                'ydz' => '一等座',
-                                'edz' => '二等座',
-                                'gjrw' => '高级软卧',
-                                'rw' => '软卧',
-                                'dw' => '动卧',
-                                'yw' => '硬卧',
-                                'rz' => '软座',
-                                'yz' => '硬座',
-                                'wz' => '无座',
-                                'qt' => '其他',
-                                'ok' => '是否可订票',
+                $passengerTicketStr .= $site_type.",0,{$passengerJson[$value - 1]['passenger_type']},{$passengerJson[$value - 1]['passenger_name']},{$passengerJson[$value - 1]['passenger_id_type_code']},{$passengerJson[$value - 1]['passenger_id_no']},{$passengerJson[$value - 1]['mobile_no']},N_";
+                $oldPassengerStr .= "{$passengerJson[$value - 1]['passenger_name']},{$passengerJson[$value - 1]['passenger_id_type_code']},{$passengerJson[$value - 1]['passenger_id_no']},1_";
+            }
+            //裁切 N_
+            $passengerTicketStr = substr($passengerTicketStr,0,strlen($passengerTicketStr)-1);
+            $this->info('$passengerTicketStr:'.$passengerTicketStr);
+            $this->info('$oldPassengerStr:'.$oldPassengerStr);
+            $this->info('进入主循环查询');
+            while (true) {
+                //循环查询
+                sleep(2);
+                $queryZ = 'https://kyfw.12306.cn/otn/leftTicket/queryZ';
+
+                $queryData = [
+                    'leftTicketDTO.train_date' => $train_date,
+                    'leftTicketDTO.from_station' => $from_code,
+                    'leftTicketDTO.to_station' => $to_code,
+                    'purpose_codes' => 'ADULT'
+                ];
+                $body = '';
+                $this->request($queryZ, true, $queryData, false, $cookieArray, $body, $head);
+                $queryJson = json_decode($body, true);
+                if ($queryJson['httpstatus'] == 200) {
+
+                    $headCol = [
+                        'cc' => '车次',
+                        'cf' => '出发时间',
+                        'dd' => '到达时间',
+                        'ls' => '历时',
+                        'swz' => '商务座/特等座',
+                        'ydz' => '一等座',
+                        'edz' => '二等座',
+                        'gjrw' => '高级软卧',
+                        'rw' => '软卧',
+                        'dw' => '动卧',
+                        'yw' => '硬卧',
+                        'rz' => '软座',
+                        'yz' => '硬座',
+                        'wz' => '无座',
+                        'qt' => '其他',
+                        'ok' => '是否可订票',
+                        'secretStr' => '车次标记',
+                    ];
+                    $result = [];
+                    //整理结果集 begin
+                    foreach ($queryJson['data']['result'] as $item) {
+
+                        $d = explode('|', $item);
+
+                        $result[] = [
+                            'cc' => $d[3],  //车次
+                            'cf' => $d[8],  //出发时间
+                            'dd' => $d[9],  //到达时间
+                            'ls' => $d[10], //历时
+                            'swz' => $d[32], //商务座/特等座 ok
+                            'ydz' => $d[31], //一等座 ok
+                            'edz' => $d[30], //二等座 ok
+                            'gjrw' => $d[21], //高级软卧 21
+                            'rw' => $d[23], //软卧 ok
+                            'dw' => $d[33], //动卧 ok
+                            'yw' => $d[28], //硬卧 ok
+                            'rz' => $d[3],  //软座
+                            'yz' => $d[29], //硬座 ok
+                            'wz' => $d[26], //无座 ok
+                            'qt' => $d[22], //其他 ok
+                            'ok' => $d[0] == '' ? false : true, //是否可订票 ok
+                            'secretStr' => urldecode($d[0])     //当前车次标记
+                        ];
+
+                    }
+                    //整理结果集 end
+                    $this->show($headCol, $result);
+                    //todo 匹配车次和座位类型
+
+                    foreach ($result as $item) {
+
+                        // 如果存在车票
+                        if ($item['ok'] && $item['cc'] == $tripsCode) {
+
+                            $submitOrderRequestUrl = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest';
+
+                            $cookieArray['_jc_save_fromDate'] = $train_date;
+                            $cookieArray['_jc_save_fromStation'] = str_replace("\\", "%", json_encode($from_name)) . '%2C' . $from_code;
+                            $cookieArray['_jc_save_showIns'] = 'true';
+                            $cookieArray['_jc_save_toDate'] = $back_train_date;
+                            $cookieArray['_jc_save_toStation'] = str_replace("\\", "%", json_encode($to_name)) . '%2C' . $to_code;
+                            $cookieArray['_jc_save_wfdc_flag'] = 'dc';          //dc 单程 wc 往返
+
+                            $submitOrderRequestData = [
+                                'secretStr' => $item['secretStr'],                              //查询票的 [0]字段
+                                'train_date' => $train_date,                    //去程日期
+                                'back_train_date' => $back_train_date,          //反程日期
+                                'tour_flag' => 'dc',                            //dc 单程 wc 往返
+                                'purpose_codes' => 'ADULT',                     //目前未知 固定
+                                'query_from_station_name' => $from_name,
+                                'query_to_station_name' => $to_name,
+                                'undefined' => '',                              //目前未知 固定为空
                             ];
 
-                            $tripsResult = [];
-                            //整理结果集 begin
-                            foreach ($tripsJson['data']['result'] as $item) {
+                            $this->request($submitOrderRequestUrl, false, $submitOrderRequestData, false, $cookieArray, $body, $head);
+                            $submitOrderJson = json_decode($body, true);
+                            if ($submitOrderJson['httpstatus'] == 200 && $submitOrderJson['status'] == true) {
 
-                                $d = explode('|', $item);
+                                globalRepeatSubmitToken:
+                                $this->info('请求订单成功 : submitOrderRequest');
+                                $initDc = 'https://kyfw.12306.cn/otn/confirmPassenger/initDc';
+                                $this->request($initDc, false, ['_json_att' => ''], true, $cookieArray, $body, $head);
+                                preg_match("/globalRepeatSubmitToken\h=\h\'.*\'\;/", $body, $ma);
 
-                                $tripsResult[] = [
-                                    'cc' => $d[3],  //车次
-                                    'cf' => $d[8],  //出发时间
-                                    'dd' => $d[9],  //到达时间
-                                    'ls' => $d[10], //历时
-                                    'swz' => $d[32], //商务座/特等座 ok
-                                    'ydz' => $d[31], //一等座 ok
-                                    'edz' => $d[30], //二等座 ok
-                                    'gjrw' => $d[21], //高级软卧 21
-                                    'rw' => $d[23], //软卧 ok
-                                    'dw' => $d[33], //动卧 ok
-                                    'yw' => $d[28], //硬卧 ok
-                                    'rz' => $d[3],  //软座
-                                    'yz' => $d[29], //硬座 ok
-                                    'wz' => $d[26], //无座 ok
-                                    'qt' => $d[22], //其他 ok
-                                    'ok' => $d[0] == '' ? false : true, //是否可订票 ok
-                                ];
+                                if ($ma[0] != '') {
 
-                            }
-                            $this->info('已为你查询到一下车次');
-                            $this->show($headCol, $tripsResult);
-                            tripQuest:
-                            $tripsIndex = $this->ask('请选择有效车次序号!');
-                            if (!isset($tripsResult[$tripsIndex - 1])) {
+                                    $st = str_replace("globalRepeatSubmitToken = '", '', $ma[0]);
+                                    $repeatSubmitToken = str_replace("';", '', $st);
 
-                                $this->error('序号不存在');
-                                goto tripQuest;
-                            }
+                                } else {
 
-                            $tripsCode = $tripsResult[$tripsIndex - 1]['cc'];
-
-                        } else {
-
-                            goto tripsFind;
-                        }
-//                        $b = substr($tripsCode,1,1);
-//                        if ($b == 'K') {
-//
-//
-//                        } else if ($b == 'G' || $b == 'D') {
-//
-//
-//                        }
-
-
-                        $this->info('进入主循环查询');
-                        while (true) {
-                            //循环查询
-                            sleep(2);
-                            $queryZ = 'https://kyfw.12306.cn/otn/leftTicket/queryZ';
-
-                            $queryData = [
-                                'leftTicketDTO.train_date' => $train_date,
-                                'leftTicketDTO.from_station' => $from_code,
-                                'leftTicketDTO.to_station' => $to_code,
-                                'purpose_codes' => 'ADULT'
-                            ];
-                            $body = '';
-                            $this->request($queryZ, true, $queryData, false, $cookieArray, $body, $head);
-                            $queryJson = json_decode($body, true);
-                            if ($queryJson['httpstatus'] == 200) {
-
-                                $headCol = [
-                                    'cc' => '车次',
-                                    'cf' => '出发时间',
-                                    'dd' => '到达时间',
-                                    'ls' => '历时',
-                                    'swz' => '商务座/特等座',
-                                    'ydz' => '一等座',
-                                    'edz' => '二等座',
-                                    'gjrw' => '高级软卧',
-                                    'rw' => '软卧',
-                                    'dw' => '动卧',
-                                    'yw' => '硬卧',
-                                    'rz' => '软座',
-                                    'yz' => '硬座',
-                                    'wz' => '无座',
-                                    'qt' => '其他',
-                                    'ok' => '是否可订票',
-                                    'secretStr' => '车次标记',
-                                ];
-                                $result = [];
-                                //整理结果集 begin
-                                foreach ($queryJson['data']['result'] as $item) {
-
-                                    $d = explode('|', $item);
-
-                                    $result[] = [
-                                        'cc' => $d[3],  //车次
-                                        'cf' => $d[8],  //出发时间
-                                        'dd' => $d[9],  //到达时间
-                                        'ls' => $d[10], //历时
-                                        'swz' => $d[32], //商务座/特等座 ok
-                                        'ydz' => $d[31], //一等座 ok
-                                        'edz' => $d[30], //二等座 ok
-                                        'gjrw' => $d[21], //高级软卧 21
-                                        'rw' => $d[23], //软卧 ok
-                                        'dw' => $d[33], //动卧 ok
-                                        'yw' => $d[28], //硬卧 ok
-                                        'rz' => $d[3],  //软座
-                                        'yz' => $d[29], //硬座 ok
-                                        'wz' => $d[26], //无座 ok
-                                        'qt' => $d[22], //其他 ok
-                                        'ok' => $d[0] == '' ? false : true, //是否可订票 ok
-                                        'secretStr' => urldecode($d[0])     //当前车次标记
-                                    ];
-
+                                    goto globalRepeatSubmitToken;
                                 }
-                                //整理结果集 end
-                                $this->show($headCol, $result);
-                                //todo 匹配车次和座位类型
+                                preg_match("/ticketInfoForPassengerForm=.*\}\;/", $body, $ma2);
+                                if ($ma2[0] != '') {
 
-                                foreach ($result as $item) {
+                                    //是个json
+                                    $st1 = str_replace("ticketInfoForPassengerForm=", '', $ma2[0]);
+                                    $st2 = str_replace(";", '', $st1);
+                                    $ticketInfoForPassengerForm = str_replace("'", '"', $st2);
+                                    $ticketInfoForPassengerForm = json_decode($ticketInfoForPassengerForm, true);
+                                }
 
-                                    // 如果存在车票
-                                    if ($item['ok'] && $item['cc'] == $tripsCode) {
+                                //订单验证
+                                $checkOrderInfoUrl = 'https://kyfw.12306.cn/otn/confirmPassenger/checkOrderInfo';
 
-                                        $submitOrderRequestUrl = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest';
+                                $checkOrderInfoData = [
+                                    'cancel_flag' => '2',
+                                    'bed_level_order_num' => '000000000000000000000000000000',
+                                    'passengerTicketStr' => $passengerTicketStr,
+                                    'oldPassengerStr' => $oldPassengerStr,
+                                    'tour_flag' => 'dc',                                //dc 单程 wc 往返
+                                    'randCode' => '',                                   //默认空
+                                    'whatsSelect' => '1',                               //暂时默认为1
+                                    '_json_att' => '',                                  //默认空
+                                    'REPEAT_SUBMIT_TOKEN' => $repeatSubmitToken,        //
+                                ];
+                                $this->info('开始请求验证订单 : checkOrderInfo');
+                                $this->request($checkOrderInfoUrl, false, $checkOrderInfoData, false, $cookieArray, $body, $head);
+                                $checkOrderInfoDataJson = json_decode($body, true);
+                                if ($checkOrderInfoDataJson['httpstatus'] == 200 && $checkOrderInfoDataJson['status'] == true) {
 
-                                        $cookieArray['_jc_save_fromDate'] = $train_date;
-                                        $cookieArray['_jc_save_fromStation'] = str_replace("\\", "%", json_encode($from_name)) . '%2C' . $from_code;
-                                        $cookieArray['_jc_save_showIns'] = 'true';
-                                        $cookieArray['_jc_save_toDate'] = $back_train_date;
-                                        $cookieArray['_jc_save_toStation'] = str_replace("\\", "%", json_encode($to_name)) . '%2C' . $to_code;
-                                        $cookieArray['_jc_save_wfdc_flag'] = 'dc';          //dc 单程 wc 往返
+                                    $this->info('验证订单返回成功');
+                                    $confirm = 'https://kyfw.12306.cn/otn/confirmPassenger/confirmSingleForQueue';
+                                    $confirmData = [
+                                        'passengerTicketStr' => $passengerTicketStr,
+                                        'oldPassengerStr' => $oldPassengerStr,
+                                        'randCode' => '',
+                                        'purpose_codes' => '00',
+                                        'key_check_isChange' => $ticketInfoForPassengerForm['key_check_isChange'],
+                                        'leftTicketStr' => $ticketInfoForPassengerForm['leftTicketStr'],
+                                        'train_location' => $ticketInfoForPassengerForm['train_location'],
+                                        'choose_seats' => '',
+                                        'seatDetailType' => '000',
+                                        'whatsSelect' => '1',
+                                        'roomType' => '00',
+                                        'dwAll' => 'N',
+                                        '_json_att' => '',
+                                    ];
+                                    $this->request($confirm, false, $confirmData, false, $cookieArray, $body, $head);
+                                    $confirmSingleForQueueRes = json_decode($body, true);
+                                    if ($confirmSingleForQueueRes['httpstatus'] == 200 && $confirmSingleForQueueRes['status'] == true) {
 
-                                        $submitOrderRequestData = [
-                                            'secretStr' => $item['secretStr'],                              //查询票的 [0]字段
-                                            'train_date' => $train_date,                    //去程日期
-                                            'back_train_date' => $back_train_date,          //反程日期
-                                            'tour_flag' => 'dc',                            //dc 单程 wc 往返
-                                            'purpose_codes' => 'ADULT',                     //目前未知 固定
-                                            'query_from_station_name' => $from_name,
-                                            'query_to_station_name' => $to_name,
-                                            'undefined' => '',                              //目前未知 固定为空
-                                        ];
-
-                                        $this->request($submitOrderRequestUrl, false, $submitOrderRequestData, false, $cookieArray, $body, $head);
-                                        $submitOrderJson = json_decode($body, true);
-                                        if ($submitOrderJson['httpstatus'] == 200 && $submitOrderJson['status'] == true) {
-
-                                            globalRepeatSubmitToken:
-                                            $this->info('请求订单成功 : submitOrderRequest');
-                                            $initDc = 'https://kyfw.12306.cn/otn/confirmPassenger/initDc';
-                                            $this->request($initDc, false, ['_json_att' => ''], true, $cookieArray, $body, $head);
-                                            $this->info('获取参数 REPEAT_SUBMIT_TOKEN:');
-                                            preg_match("/globalRepeatSubmitToken\h=\h\'.*\'\;/", $body, $ma);
-
-                                            if ($ma[0] != '') {
-
-                                                $st = str_replace("globalRepeatSubmitToken = '", '', $ma[0]);
-                                                $repeatSubmitToken = str_replace("';", '', $st);
-
-                                            } else {
-
-                                                goto globalRepeatSubmitToken;
-                                            }
-                                            preg_match("/ticketInfoForPassengerForm=.*\}\;/", $body, $ma2);
-                                            if ($ma2[0] != '') {
-
-                                                //是个json
-                                                $st1 = str_replace("ticketInfoForPassengerForm=", '', $ma2[0]);
-                                                $st2 = str_replace(";", '', $st1);
-                                                $ticketInfoForPassengerForm = str_replace("'", '"', $st2);
-                                                $ticketInfoForPassengerForm = json_decode($ticketInfoForPassengerForm, true);
-                                            }
-
-                                            //订单验证
-                                            $checkOrderInfoUrl = 'https://kyfw.12306.cn/otn/confirmPassenger/checkOrderInfo';
-
-                                            $checkOrderInfoData = [
-                                                'cancel_flag' => '2',
-                                                'bed_level_order_num' => '000000000000000000000000000000',
-                                                'passengerTicketStr' => "1,0,1,{$name},1,{$idCard},{$phone},N",
-                                                'oldPassengerStr' => "{$name},1,{$idCard},1_",
-                                                'tour_flag' => 'dc',                                //dc 单程 wc 往返
-                                                'randCode' => '',                                   //默认空
-                                                'whatsSelect' => '1',                               //暂时默认为1
-                                                '_json_att' => '',                                  //默认空
-                                                'REPEAT_SUBMIT_TOKEN' => $repeatSubmitToken,        //
-                                            ];
-                                            $this->info('开始请求验证订单 : checkOrderInfo');
-                                            $this->request($checkOrderInfoUrl, false, $checkOrderInfoData, false, $cookieArray, $body, $head);
-                                            $checkOrderInfoDataJson = json_decode($body, true);
-                                            if ($checkOrderInfoDataJson['httpstatus'] == 200 && $checkOrderInfoDataJson['status'] == true) {
-
-                                                $this->info('验证订单返回成功');
-                                                $confirm = 'https://kyfw.12306.cn/otn/confirmPassenger/confirmSingleForQueue';
-                                                $confirmData = [
-                                                    'passengerTicketStr' => "O,0,1,{$name},1,{$idCard},{$phone},N",
-                                                    'oldPassengerStr' => "{$name},1,{$idCard},1_",
-                                                    'randCode' => '',
-                                                    'purpose_codes' => '00',
-                                                    'key_check_isChange' => $ticketInfoForPassengerForm['key_check_isChange'],
-                                                    'leftTicketStr' => $ticketInfoForPassengerForm['leftTicketStr'],
-                                                    'train_location' => $ticketInfoForPassengerForm['train_location'],
-                                                    'choose_seats' => '',
-                                                    'seatDetailType' => '000',
-                                                    'whatsSelect' => '1',
-                                                    'roomType' => '00',
-                                                    'dwAll' => 'N',
-                                                    '_json_att' => '',
-                                                ];
-                                                $this->request($confirm, false, $confirmData, false, $cookieArray, $body, $head);
-                                                $confirmSingleForQueueRes = json_decode($body, true);
-                                                if ($confirmSingleForQueueRes['httpstatus'] == 200 && $confirmSingleForQueueRes['status'] == true) {
-
-                                                    $this->info('订单完成 : confirmSingleForQueue');
-                                                    exit(0);
-                                                }
-
-                                            }
-
-                                        }
-
+                                        $this->info('订单完成 : confirmSingleForQueue');
+                                        exit(0);
                                     }
 
                                 }
+
                             }
-                            continue;
+
                         }
 
-                    } else {
-
-                        $this->error('用户登录第三阶错误');
                     }
-
-
-                } else {
-                    $this->error('用户登录第二阶错误');
-                    $this->error('获取newapptk 错误');
                 }
-
-            } else {
-
-                $this->error('用户登录第一阶错误');
-                $this->error('请求登录错误:' . $loginJson['result_message']);
+                continue;
             }
+
         }
 
     }
@@ -594,7 +510,9 @@ class Ticket extends Command
         //验证用户登录状态
         $checkUserLoginUrl = 'https://kyfw.12306.cn/otn/login/checkUser';
         //todo 这块是用户登录验证
-        $this->request($checkUserLoginUrl, false, ['_json_att' => ''], false, $cookieArray, $body);
+        $body = '';
+        $head = '';
+        $this->request($checkUserLoginUrl, false, ['_json_att' => ''], false, $cookieArray, $body, $head);
         $checkUserLoginResult = json_decode($body, true);
         if ($checkUserLoginResult['data']['flag'] == false) {
 
