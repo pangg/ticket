@@ -36,20 +36,17 @@ class Ticket extends Command
 
     public function ask($question, $default = null)
     {
-        return parent::ask(mb_convert_encoding($question, 'utf-8', 'utf-8'), $default);
-//        return parent::ask(mb_convert_encoding($question, 'gb2312', 'utf-8'), $default);
+        return parent::ask($question, $default);
     }
 
     public function info($string, $verbosity = null)
     {
-        parent::info(mb_convert_encoding($string, 'utf-8', 'utf-8'), $verbosity);
-//        parent::info(mb_convert_encoding($string, 'gb2312', 'utf-8'), $verbosity);
+        parent::info("\e[34m " . $string . " \e[34m", $verbosity);
     }
 
     public function error($string, $verbosity = null)
     {
-        parent::error(mb_convert_encoding($string, 'utf-8', 'utf-8'), $verbosity);
-//        parent::error(mb_convert_encoding($string, 'gb2312', 'utf-8'), $verbosity);
+        parent::error("\e[31m " . $string . " \e[31m", $verbosity);
     }
 
     public function show(array $rowName = [], array $data)
@@ -57,23 +54,22 @@ class Ticket extends Command
         $i = 0;
         foreach ($data as $item) {
 
-            $write = "\n";
+            $write = "";
 
             $i++;
 
-            $write .= "- {$i}";
+            $write .= "- \e[31m {$i}\e[31m ";
 
             foreach ($item as $key => $value) {
 
-                $str = " | {$rowName[$key]} : [  \033[32m {$value} \033[0m  ";
+                $str = "\e[34m | {$rowName[$key]}\e[34m : \e[32m[  {$value} ";
                 while (mb_strlen($str) < 30) {
 
                     $str .= " ";
                 }
-                $write .= $str . " ]";
+                $write .= $str . " ]\e[32m";
             }
-            $write .= "\n";
-            echo $write;
+            $this->info($write);
         }
     }
 
@@ -89,19 +85,20 @@ class Ticket extends Command
         $username = '';
         $password = '';
         $cookieArray = [];
+        $head = '';
         $body = '';
-//        $train_date = $this->ask('请输入去程日期 格式：' . date('Y-m-d'));
-//        $back_train_date = $this->ask('请输入反程日期 格式：' . date('Y-m-d'));
-        $train_date = '2018-01-18';
-        $back_train_date = '2018-01-18';
+        $train_date = $this->ask('请输入去程日期 格式：' . date('Y-m-d'));
+        $back_train_date = $this->ask('请输入反程日期 格式：' . date('Y-m-d'));
+//        $train_date = '2018-02-10';
+//        $back_train_date = '2018-02-10';
         $from_name = '';
         $from_code = '';
         $to_name = '';
         $to_code = '';
         while (true) {
 
-//            $from_name = $this->ask('从哪里出发?');
-            $from_name = '北京';
+            $from_name = $this->ask('从哪里出发?');
+//            $from_name = '深圳东';
             $v = Config::get('ticket.address.' . $from_name);
             if ($v != null) {
 
@@ -112,8 +109,8 @@ class Ticket extends Command
         }
         while (true) {
 
-//            $to_name = $this->ask('到哪里去?');
-            $to_name = '上海';
+            $to_name = $this->ask('到哪里去?');
+//            $to_name = '重庆北';
             $v = Config::get('ticket.address.' . $to_name);
             if ($v != null) {
 
@@ -129,24 +126,24 @@ class Ticket extends Command
         $ticketInfoForPassengerForm = '';
         $loginPost = 'https://kyfw.12306.cn/passport/web/login';
         $initUrl = 'https://kyfw.12306.cn/otn/login/init';
-        $this->request($initUrl, true, [], false, $cookieArray, $body);
+        $this->request($initUrl, true, [], false, $cookieArray, $body, $head);
         Yan:
         $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&amp;rand=sjrand&;' . mt_rand(0, 999);
-        $res_yan = '';
         while (true) {
 
-            $res_yan = $this->request($yanUrl, true, [], false, $cookieArray, $body);
-            if ($res_yan !== '') {
+            $this->request($yanUrl, true, [], false, $cookieArray, $body, $head);
+            if ($body !== '') {
 
                 break;
             }
         }
-        $this->info('获取验证码成功');
-        preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $res_yan, $matches);
+        preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $head, $matches);
         if (count($matches) < 2) {
 
+            $this->error('图片头部cookie < 2 重新获取');
             goto Yan;
         }
+        $this->info('获取验证码成功');
 
         $imgKey = explode('=', $matches[1][1])[1];
 
@@ -165,8 +162,8 @@ class Ticket extends Command
 
             $file = "{$dir}{$imgKey}.jpeg";
             $f = fopen($file, 'w+');
-            $img = explode("\r\n\r\n", $res_yan, 2);
-            fwrite($f, $img[1]);
+            $img = $body;
+            fwrite($f, $img);
             fclose($f);
             $randCode = new RandCode();
             $randCode->key = $imgKey;
@@ -193,7 +190,7 @@ class Ticket extends Command
             'login_site' => 'E',
             'rand' => 'sjrand'
         ];
-        $this->request($checkYan, false, $checkData, false, $cookieArray, $body);
+        $this->request($checkYan, false, $checkData, false, $cookieArray, $body, $head);
         $json = json_decode($body, true);
         if ($json['result_code'] != "4") {
 
@@ -204,6 +201,10 @@ class Ticket extends Command
             goto Yan;
         } else {
 
+            $this->info('验证码通过...');
+
+            $this->info('开始请求登录...');
+
             $loginData = [
                 'username' => $username,
                 'password' => $password,
@@ -211,7 +212,7 @@ class Ticket extends Command
             ];
             $body = '';
             LoginPost:
-            $this->request($loginPost, false, $loginData, false, $cookieArray, $body);
+            $this->request($loginPost, false, $loginData, false, $cookieArray, $body, $head);
 
             if ($body == '') {
 
@@ -224,7 +225,7 @@ class Ticket extends Command
                 $cookieArray['uamtk'] = $loginJson['uamtk'];
                 $this->info('登录成功');
                 $uamtkUrl = 'https://kyfw.12306.cn/passport/web/auth/uamtk';
-                $this->request($uamtkUrl, false, ['appid' => 'otn'], false, $cookieArray, $body);
+                $this->request($uamtkUrl, false, ['appid' => 'otn'], false, $cookieArray, $body, $head);
                 $this->info($body);
                 $uamtkJson = json_decode($body, true);
                 if ($uamtkJson['result_code'] == 0) {
@@ -232,15 +233,100 @@ class Ticket extends Command
                     $tk = $uamtkJson['newapptk'];
 
                     $uamtkClientUrl = 'https://kyfw.12306.cn/otn/uamauthclient';
-                    $this->request($uamtkClientUrl, false, ['tk' => $tk], false, $cookieArray, $body);
+                    $this->request($uamtkClientUrl, false, ['tk' => $tk], false, $cookieArray, $body, $head);
                     $this->info('uamtkclient');
                     $this->info($body);
                     $uamtkClientJson = json_decode($body, true);
                     if ($uamtkClientJson['result_code'] == 0) {
 
-                        $this->info('进入循环查询');
+                        //todo 查询车次 选定车次 确认乘车人
+                        tripsFind:
+                        $tripsCode = '';
+                        $body = '';
+                        $this->request('https://kyfw.12306.cn/otn/leftTicket/queryZ', true, [
+                            'leftTicketDTO.train_date' => $train_date,
+                            'leftTicketDTO.from_station' => $from_code,
+                            'leftTicketDTO.to_station' => $to_code,
+                            'purpose_codes' => 'ADULT'
+                        ], false, $cookieArray, $body, $head);
+                        $tripsJson = json_decode($body, true);
+                        if ($tripsJson['httpstatus'] == 200) {
+
+                            $headCol = [
+                                'cc' => '车次',
+                                'cf' => '出发时间',
+                                'dd' => '到达时间',
+                                'ls' => '历时',
+                                'swz' => '商务座/特等座',
+                                'ydz' => '一等座',
+                                'edz' => '二等座',
+                                'gjrw' => '高级软卧',
+                                'rw' => '软卧',
+                                'dw' => '动卧',
+                                'yw' => '硬卧',
+                                'rz' => '软座',
+                                'yz' => '硬座',
+                                'wz' => '无座',
+                                'qt' => '其他',
+                                'ok' => '是否可订票',
+                            ];
+
+                            $tripsResult = [];
+                            //整理结果集 begin
+                            foreach ($tripsJson['data']['result'] as $item) {
+
+                                $d = explode('|', $item);
+
+                                $tripsResult[] = [
+                                    'cc' => $d[3],  //车次
+                                    'cf' => $d[8],  //出发时间
+                                    'dd' => $d[9],  //到达时间
+                                    'ls' => $d[10], //历时
+                                    'swz' => $d[32], //商务座/特等座 ok
+                                    'ydz' => $d[31], //一等座 ok
+                                    'edz' => $d[30], //二等座 ok
+                                    'gjrw' => $d[21], //高级软卧 21
+                                    'rw' => $d[23], //软卧 ok
+                                    'dw' => $d[33], //动卧 ok
+                                    'yw' => $d[28], //硬卧 ok
+                                    'rz' => $d[3],  //软座
+                                    'yz' => $d[29], //硬座 ok
+                                    'wz' => $d[26], //无座 ok
+                                    'qt' => $d[22], //其他 ok
+                                    'ok' => $d[0] == '' ? false : true, //是否可订票 ok
+                                ];
+
+                            }
+                            $this->info('已为你查询到一下车次');
+                            $this->show($headCol, $tripsResult);
+                            tripQuest:
+                            $tripsIndex = $this->ask('请选择有效车次序号!');
+                            if (!isset($tripsResult[$tripsIndex - 1])) {
+
+                                $this->error('序号不存在');
+                                goto tripQuest;
+                            }
+
+                            $tripsCode = $tripsResult[$tripsIndex - 1]['cc'];
+
+                        } else {
+
+                            goto tripsFind;
+                        }
+//                        $b = substr($tripsCode,1,1);
+//                        if ($b == 'K') {
+//
+//
+//                        } else if ($b == 'G' || $b == 'D') {
+//
+//
+//                        }
+
+
+                        $this->info('进入主循环查询');
                         while (true) {
                             //循环查询
+                            sleep(2);
                             $queryZ = 'https://kyfw.12306.cn/otn/leftTicket/queryZ';
 
                             $queryData = [
@@ -250,13 +336,11 @@ class Ticket extends Command
                                 'purpose_codes' => 'ADULT'
                             ];
                             $body = '';
-                            $this->request($queryZ, true, $queryData, false, $cookieArray, $body);
-                            $this->info('输出查询返回的内容');
-                            $this->info($body);
+                            $this->request($queryZ, true, $queryData, false, $cookieArray, $body, $head);
                             $queryJson = json_decode($body, true);
                             if ($queryJson['httpstatus'] == 200) {
 
-                                $head = [
+                                $headCol = [
                                     'cc' => '车次',
                                     'cf' => '出发时间',
                                     'dd' => '到达时间',
@@ -276,6 +360,7 @@ class Ticket extends Command
                                     'secretStr' => '车次标记',
                                 ];
                                 $result = [];
+                                //整理结果集 begin
                                 foreach ($queryJson['data']['result'] as $item) {
 
                                     $d = explode('|', $item);
@@ -301,10 +386,14 @@ class Ticket extends Command
                                     ];
 
                                 }
-                                $this->show($head, $result);
+                                //整理结果集 end
+                                $this->show($headCol, $result);
+                                //todo 匹配车次和座位类型
+
                                 foreach ($result as $item) {
 
-                                    if ($item['ok']) {
+                                    // 如果存在车票
+                                    if ($item['ok'] && $item['cc'] == $tripsCode) {
 
                                         $submitOrderRequestUrl = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest';
 
@@ -325,15 +414,15 @@ class Ticket extends Command
                                             'query_to_station_name' => $to_name,
                                             'undefined' => '',                              //目前未知 固定为空
                                         ];
-                                        // 没有返回
-                                        $this->request($submitOrderRequestUrl, false, $submitOrderRequestData, false, $cookieArray, $body);
+
+                                        $this->request($submitOrderRequestUrl, false, $submitOrderRequestData, false, $cookieArray, $body, $head);
                                         $submitOrderJson = json_decode($body, true);
                                         if ($submitOrderJson['httpstatus'] == 200 && $submitOrderJson['status'] == true) {
 
                                             globalRepeatSubmitToken:
-                                            $this->info('请求订单成功');
+                                            $this->info('请求订单成功 : submitOrderRequest');
                                             $initDc = 'https://kyfw.12306.cn/otn/confirmPassenger/initDc';
-                                            $this->request($initDc, false, ['_json_att' => ''], true, $cookieArray, $body);
+                                            $this->request($initDc, false, ['_json_att' => ''], true, $cookieArray, $body, $head);
                                             $this->info('获取参数 REPEAT_SUBMIT_TOKEN:');
                                             preg_match("/globalRepeatSubmitToken\h=\h\'.*\'\;/", $body, $ma);
 
@@ -362,7 +451,7 @@ class Ticket extends Command
                                             $checkOrderInfoData = [
                                                 'cancel_flag' => '2',
                                                 'bed_level_order_num' => '000000000000000000000000000000',
-                                                'passengerTicketStr' => "O,0,1,{$name},1,{$idCard},{$phone},N",
+                                                'passengerTicketStr' => "1,0,1,{$name},1,{$idCard},{$phone},N",
                                                 'oldPassengerStr' => "{$name},1,{$idCard},1_",
                                                 'tour_flag' => 'dc',                                //dc 单程 wc 往返
                                                 'randCode' => '',                                   //默认空
@@ -370,12 +459,12 @@ class Ticket extends Command
                                                 '_json_att' => '',                                  //默认空
                                                 'REPEAT_SUBMIT_TOKEN' => $repeatSubmitToken,        //
                                             ];
-                                            $this->info('开始请求验证订单');
-                                            $this->request($checkOrderInfoUrl, false, $checkOrderInfoData, false, $cookieArray, $body);
-                                            $this->info('看看什么返回 checkOrderInfo：' . $body);
-                                            $checkOrderInfoDataJson = json_decode($body,true);
+                                            $this->info('开始请求验证订单 : checkOrderInfo');
+                                            $this->request($checkOrderInfoUrl, false, $checkOrderInfoData, false, $cookieArray, $body, $head);
+                                            $checkOrderInfoDataJson = json_decode($body, true);
                                             if ($checkOrderInfoDataJson['httpstatus'] == 200 && $checkOrderInfoDataJson['status'] == true) {
 
+                                                $this->info('验证订单返回成功');
                                                 $confirm = 'https://kyfw.12306.cn/otn/confirmPassenger/confirmSingleForQueue';
                                                 $confirmData = [
                                                     'passengerTicketStr' => "O,0,1,{$name},1,{$idCard},{$phone},N",
@@ -392,11 +481,11 @@ class Ticket extends Command
                                                     'dwAll' => 'N',
                                                     '_json_att' => '',
                                                 ];
-                                                $this->request($confirm, false, $confirmData, false, $cookieArray, $body);
-                                                $this->info('看看什么返回 confirmSingleForQueue：' . $body);
-                                                $confirmSingleForQueueRes = json_decode($body,true);
+                                                $this->request($confirm, false, $confirmData, false, $cookieArray, $body, $head);
+                                                $confirmSingleForQueueRes = json_decode($body, true);
                                                 if ($confirmSingleForQueueRes['httpstatus'] == 200 && $confirmSingleForQueueRes['status'] == true) {
 
+                                                    $this->info('订单完成 : confirmSingleForQueue');
                                                     exit(0);
                                                 }
 
@@ -408,35 +497,31 @@ class Ticket extends Command
 
                                 }
                             }
+                            continue;
                         }
 
-//                         验证用户登录状态
-//                        $checkUserLoginUrl = 'https://kyfw.12306.cn/otn/login/checkUser';
-//                        todo 这块是用户登录验证
-//                        $this->request($checkUserLoginUrl,false,['_json_att'=>''],false,$cookieArray,$body);
-//                        $checkUserLoginResult = json_decode($body,true);
-//                        if ($checkUserLoginResult['data']['flag'] == false) {
-//
-//                            $this->info('用户没有登录');
-//                        } else {
-//
-//                            $this->info('用户已登录');
-//                        }
+                    } else {
 
+                        $this->error('用户登录第三阶错误');
                     }
 
 
                 } else {
-
-                    $this->error('登录错误:' . $loginJson['result_message']);
+                    $this->error('用户登录第二阶错误');
+                    $this->error('获取newapptk 错误');
                 }
 
+            } else {
+
+                $this->error('用户登录第一阶错误');
+                $this->error('请求登录错误:' . $loginJson['result_message']);
             }
         }
 
     }
 
-    private function request(string $url, bool $get = false, array $data = [], bool $follow = false, array &$cookieArray, string &$body): string
+    private function request(string $url, bool $get = false, array $data = [], bool $follow = false,
+                             array &$cookieArray = [], string &$body, string &$head): string
     {
 
         $curl = curl_init();
@@ -452,7 +537,7 @@ class Ticket extends Command
 
                 $cookieStr .= "{$key}={$value};";
             }
-            $this->info('cook_str: ' . $cookieStr);
+            $this->info("url: {$url}  cook_str: {$cookieStr} ");
             curl_setopt($curl, CURLOPT_COOKIE, $cookieStr);
 
         }
@@ -482,7 +567,12 @@ class Ticket extends Command
             curl_close($curl);
             return '';
         } else {
-            preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $res, $matches);
+
+            $headerSize = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+            $head = substr($res, 0, $headerSize);
+            $body = substr($res, $headerSize);
+
+            preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $head, $matches);
             if (count($matches) == 2) {
 
                 foreach ($matches[1] as $match) {
@@ -491,11 +581,155 @@ class Ticket extends Command
                     $cookieArray[$cok[0]] = $cok[1];
                 }
             }
-            $headerSize = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
-            $body = substr($res, $headerSize);
 
             curl_close($curl);
             return $res;
+        }
+    }
+
+
+    private function checkUser(string $username, string $password, array &$cookieArray)
+    {
+        Check:
+        //验证用户登录状态
+        $checkUserLoginUrl = 'https://kyfw.12306.cn/otn/login/checkUser';
+        //todo 这块是用户登录验证
+        $this->request($checkUserLoginUrl, false, ['_json_att' => ''], false, $cookieArray, $body);
+        $checkUserLoginResult = json_decode($body, true);
+        if ($checkUserLoginResult['data']['flag'] == false) {
+
+            $this->info('用户没有登录');
+            $loginPost = 'https://kyfw.12306.cn/passport/web/login';
+            $initUrl = 'https://kyfw.12306.cn/otn/login/init';
+            $this->request($initUrl, true, [], false, $cookieArray, $body, $head);
+            Yan:
+            $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&amp;rand=sjrand&;' . mt_rand(0, 999);
+            while (true) {
+
+                $this->request($yanUrl, true, [], false, $cookieArray, $body, $head);
+                if ($body !== '') {
+
+                    break;
+                }
+            }
+            preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $head, $matches);
+            if (count($matches) < 2) {
+
+                $this->error('图片头部cookie < 2 重新获取');
+                goto Yan;
+            }
+            $this->info('获取验证码成功');
+
+            $imgKey = explode('=', $matches[1][1])[1];
+
+            $date = date('Y-m-d', time());
+            $baseDir = "/uploads/img/{$date}/";
+
+            $dir = app()->publicPath() . $baseDir;
+            if (!is_dir($dir)) {
+
+                mkdir($dir, 0777, true);
+            }
+            $has_rand = RandCode::where('key', '=', $imgKey)->first();
+            if ($has_rand == null) {
+
+                $this->info('未能在数据库中找到答案,请手动输入');
+
+                $file = "{$dir}{$imgKey}.jpeg";
+                $f = fopen($file, 'w+');
+                $img = $body;
+                fwrite($f, $img);
+                fclose($f);
+                $randCode = new RandCode();
+                $randCode->key = $imgKey;
+                $randCode->value = '';
+                $randCode->path = $baseDir . "{$imgKey}.jpeg";
+                $randCode->save();
+                $this->info('请打开页面' . URL::to('/image') . '/' . $randCode->id);
+                $lng = $this->ask('请输入图片坐标?');
+            } else {
+
+                if ($has_rand->value == '') {
+
+                    $lng = $this->ask('请输入图片坐标?');
+                } else {
+                    $lng = $has_rand->value;
+
+                }
+
+            }
+            //验证码 验证
+            $checkYan = 'https://kyfw.12306.cn/passport/captcha/captcha-check'; //post
+            $checkData = [
+                'answer' => $lng,
+                'login_site' => 'E',
+                'rand' => 'sjrand'
+            ];
+            $this->request($checkYan, false, $checkData, false, $cookieArray, $body, $head);
+            $json = json_decode($body, true);
+            if ($json['result_code'] != "4") {
+
+                unset($cookieArray['_passport_session']);
+                unset($cookieArray['_passport_ct']);
+                $this->info($json['result_message']);
+                $this->info('准备重新获取验证码');
+                goto Yan;
+            } else {
+
+                $this->info('验证码通过...');
+
+                $this->info('开始请求登录...');
+
+                $loginData = [
+                    'username' => $username,
+                    'password' => $password,
+                    'appid' => 'otn'
+                ];
+                $body = '';
+                LoginPost:
+                $this->request($loginPost, false, $loginData, false, $cookieArray, $body, $head);
+
+                if ($body == '') {
+
+                    goto LoginPost;
+                }
+                $this->info($body);
+                $loginJson = json_decode($body, true);
+                if ($loginJson['result_code'] == 0) {
+
+                    $cookieArray['uamtk'] = $loginJson['uamtk'];
+                    $this->info('登录成功');
+                    $uamtkUrl = 'https://kyfw.12306.cn/passport/web/auth/uamtk';
+                    $this->request($uamtkUrl, false, ['appid' => 'otn'], false, $cookieArray, $body, $head);
+                    $this->info($body);
+                    $uamtkJson = json_decode($body, true);
+                    if ($uamtkJson['result_code'] == 0) {
+
+                        $tk = $uamtkJson['newapptk'];
+
+                        $uamtkClientUrl = 'https://kyfw.12306.cn/otn/uamauthclient';
+                        $this->request($uamtkClientUrl, false, ['tk' => $tk], false, $cookieArray, $body, $head);
+                        $this->info('uamtkclient');
+                        $this->info($body);
+                        $uamtkClientJson = json_decode($body, true);
+                        if ($uamtkClientJson['result_code'] == 0) {
+
+                            return true;
+                        }
+                    }
+                    goto Check;
+                } else {
+
+                    $this->error('登录错误 请检查用户名密码');
+                    return false;
+                }
+
+            }
+
+        } else {
+
+            $this->info('用户已登录');
+            return true;
         }
     }
 }
