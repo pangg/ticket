@@ -44,6 +44,7 @@ class VerificationCode extends Command
         $head = '';
         for ($i = 1; $i <= 1000; $i++) {
 
+            Y:
             $imgUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 9999);
             $this->request($imgUrl, true, [], false, $body, $head);
             if ($body != '' && $head != '') {
@@ -75,6 +76,9 @@ class VerificationCode extends Command
                         $randCode->save();
                     }
                 }
+            } else {
+                //保证 1k次有效
+                goto Y;
             }
         }
 
