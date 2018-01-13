@@ -42,16 +42,21 @@ class VerificationCode extends Command
         $date = $this->argument('date');
         $body = '';
         $head = '';
-        for ($i = 1; $i <= 10000; $i++) {
+        $times = 0;
+        while (true) {
 
             $imgUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 9999);
             $this->request($imgUrl, true, [], false, $body, $head);
             if ($body != '' && $head != '') {
 
                 $md5 = md5($body);
-                $rand_code = RandCode::where('md5','=',$md5)->first();
+                $rand_code = RandCode::where('md5', '=', $md5)->first();
                 if ($rand_code == null) {
 
+                    $times ++;
+                    if ($times == 1000) {
+                        exit();
+                    }
 //                    $date = date('Y-m-d', time());
                     $baseDir = "/uploads/img/{$date}/";
 

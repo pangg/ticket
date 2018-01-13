@@ -249,13 +249,13 @@ class Ticket extends Command
                     goto ShowUserList;
                 }
 
-                $passengerTicketStr .= $site_type.",0,{$passengerJson[$value - 1]['passenger_type']},{$passengerJson[$value - 1]['passenger_name']},{$passengerJson[$value - 1]['passenger_id_type_code']},{$passengerJson[$value - 1]['passenger_id_no']},{$passengerJson[$value - 1]['mobile_no']},N_";
+                $passengerTicketStr .= $site_type . ",0,{$passengerJson[$value - 1]['passenger_type']},{$passengerJson[$value - 1]['passenger_name']},{$passengerJson[$value - 1]['passenger_id_type_code']},{$passengerJson[$value - 1]['passenger_id_no']},{$passengerJson[$value - 1]['mobile_no']},N_";
                 $oldPassengerStr .= "{$passengerJson[$value - 1]['passenger_name']},{$passengerJson[$value - 1]['passenger_id_type_code']},{$passengerJson[$value - 1]['passenger_id_no']},1_";
             }
             //裁切 N_
-            $passengerTicketStr = substr($passengerTicketStr,0,strlen($passengerTicketStr)-1);
-            $this->info('$passengerTicketStr:'.$passengerTicketStr);
-            $this->info('$oldPassengerStr:'.$oldPassengerStr);
+            $passengerTicketStr = substr($passengerTicketStr, 0, strlen($passengerTicketStr) - 1);
+            $this->info('$passengerTicketStr:' . $passengerTicketStr);
+            $this->info('$oldPassengerStr:' . $oldPassengerStr);
             $this->info('进入主循环查询');
             while (true) {
                 //循环查询
@@ -530,15 +530,7 @@ class Ticket extends Command
                     break;
                 }
             }
-            preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $head, $matches);
-            if (count($matches) < 2) {
-
-                $this->error('图片头部cookie < 2 重新获取');
-                goto Yan;
-            }
-            $this->info('获取验证码成功');
-
-            $imgKey = explode('=', $matches[1][1])[1];
+            $md5 = md5($body);
 
             $date = date('Y-m-d', time());
             $baseDir = "/uploads/img/{$date}/";
@@ -548,26 +540,28 @@ class Ticket extends Command
 
                 mkdir($dir, 0777, true);
             }
-            $has_rand = RandCode::where('key', '=', $imgKey)->first();
+            $has_rand = RandCode::where('md5', '=', $md5)->first();
             if ($has_rand == null) {
 
                 $this->info('未能在数据库中找到答案,请手动输入');
 
-                $file = "{$dir}{$imgKey}.jpeg";
+                $file = "{$dir}{$md5}.jpeg";
                 $f = fopen($file, 'w+');
                 $img = $body;
                 fwrite($f, $img);
                 fclose($f);
                 $randCode = new RandCode();
-                $randCode->key = $imgKey;
+                $randCode->md5 = $md5;
                 $randCode->value = '';
-                $randCode->path = $baseDir . "{$imgKey}.jpeg";
+                $randCode->path = $baseDir . "{$md5}.jpeg";
                 $randCode->save();
                 $this->info('请打开页面' . URL::to('/image') . '/' . $randCode->id);
                 $lng = $this->ask('请输入图片坐标?');
             } else {
 
                 if ($has_rand->value == '') {
+
+                    $this->error('数据库存在,但是没有答案');
 
                     $lng = $this->ask('请输入图片坐标?');
                 } else {
@@ -585,6 +579,7 @@ class Ticket extends Command
             ];
             $this->request($checkYan, false, $checkData, false, $cookieArray, $body, $head);
             $json = json_decode($body, true);
+            $this->info('验证码返回' . $body);
             if ($json['result_code'] != "4") {
 
                 unset($cookieArray['_passport_session']);
@@ -611,7 +606,7 @@ class Ticket extends Command
 
                     goto LoginPost;
                 }
-                $this->info($body);
+                $this->info('请求登录返回 ' . $body);
                 $loginJson = json_decode($body, true);
                 if ($loginJson['result_code'] == 0) {
 
@@ -619,7 +614,7 @@ class Ticket extends Command
                     $this->info('登录成功');
                     $uamtkUrl = 'https://kyfw.12306.cn/passport/web/auth/uamtk';
                     $this->request($uamtkUrl, false, ['appid' => 'otn'], false, $cookieArray, $body, $head);
-                    $this->info($body);
+                    $this->info('登录 uamtk: ' . $body);
                     $uamtkJson = json_decode($body, true);
                     if ($uamtkJson['result_code'] == 0) {
 
