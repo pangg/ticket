@@ -53,10 +53,6 @@ class VerificationCode extends Command
                 $rand_code = RandCode::where('md5', '=', $md5)->first();
                 if ($rand_code == null) {
 
-                    $times ++;
-                    if ($times == 1000) {
-                        exit();
-                    }
 //                    $date = date('Y-m-d', time());
                     $baseDir = "/uploads/img/{$date}/";
 
@@ -76,6 +72,11 @@ class VerificationCode extends Command
                     $randCode->value = '';
                     $randCode->path = $baseDir . "{$md5}.jpeg";
                     $randCode->save();
+
+                    $times ++;
+                    if ($times == 1000) {
+                        exit();
+                    }
 
                 }
             }
