@@ -12,3 +12,5 @@
 */
 
 Route::get('image/{id}','ImageController@showImage');
+
+Route::post('image/{id}','ImageController@saveAnswer');

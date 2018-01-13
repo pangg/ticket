@@ -541,6 +541,7 @@ class Ticket extends Command
                 mkdir($dir, 0777, true);
             }
             $has_rand = RandCode::where('md5', '=', $md5)->first();
+            $randCode = null;
             if ($has_rand == null) {
 
                 $this->info('未能在数据库中找到答案,请手动输入');
@@ -562,7 +563,7 @@ class Ticket extends Command
                 if ($has_rand->value == '') {
 
                     $this->error('数据库存在,但是没有答案');
-
+                    $this->info('请打开页面' . URL::to('/image') . '/' . $has_rand->id);
                     $lng = $this->ask('请输入图片坐标?');
                 } else {
                     $lng = $has_rand->value;
@@ -588,6 +589,17 @@ class Ticket extends Command
                 $this->info('准备重新获取验证码');
                 goto Yan;
             } else {
+
+                if ($has_rand == null) {
+
+                    $randCode->value= $lng;
+                    $randCode->save();
+
+                } else {
+
+                    $has_rand->value= $lng;
+                    $has_rand->save();
+                }
 
                 $this->info('验证码通过...');
 

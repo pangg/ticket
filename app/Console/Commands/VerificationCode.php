@@ -75,7 +75,7 @@ class VerificationCode extends Command
 
                     $times ++;
                     if ($times == 1000) {
-                        exit();
+                        return true;
                     }
 
                 }

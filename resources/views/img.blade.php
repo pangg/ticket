@@ -10,8 +10,17 @@
 </head>
 <body>
 <img src="{{$randCode->path}}" alt="" id="image">
-<label for="" id="label"></label>
-<button type="button" onclick="$('#label').html('')">清除</button>
+<br>
+<label for="" id="value">当前答案: {{$randCode->value}}</label>
+<br>
+<form action="" method="post">
+    {{csrf_field()}}
+    <label for="answer" id="label">请输入答案</label>
+    <input type="text" id="answer" name="answer" value="" required>
+    <button type="button" onclick="$('#answer').val('')">清除</button>
+    <button type="submit">提交答案</button>
+</form>
+
 <a href="{{URL::to('/image/'.($id + 1))}}">下一张</a>
 <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script>
 <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
@@ -29,12 +38,12 @@
     };
     $('#image').on('click', function () {
 
-        var text = $('#label').html();
+        var text = $('#answer').val();
         if (text == '') {
 
-            $('#label').html(xSpan + "," + (ySpan-30))
+            $('#answer').val(xSpan + "," + (ySpan-30))
         } else {
-            $('#label').html(text + "," + xSpan + "," + (ySpan-30))
+            $('#answer').val(text + "," + xSpan + "," + (ySpan-30))
         }
     })
 </script>
