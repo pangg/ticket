@@ -42,18 +42,17 @@ class VerificationCode extends Command
         $date = $this->argument('date');
         $body = '';
         $head = '';
-        for ($i = 1; $i <= 1000; $i++) {
+        for ($i = 1; $i <= 10000; $i++) {
 
-            Y:
             $imgUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 9999);
             $this->request($imgUrl, true, [], false, $body, $head);
             if ($body != '' && $head != '') {
 
-                preg_match_all("/Set\-Cookie:\h([^\r\n]*);/", $head, $matches);
-                if (count($matches) == 2) {
+                $md5 = md5($body);
+                $rand_code = RandCode::where('md5','=',$md5)->first();
+                if ($rand_code == null) {
 
-                    $imgKey = explode('=', $matches[1][1])[1];
-
+//                    $date = date('Y-m-d', time());
                     $baseDir = "/uploads/img/{$date}/";
 
                     $dir = app()->publicPath() . $baseDir;
@@ -61,29 +60,22 @@ class VerificationCode extends Command
 
                         mkdir($dir, 0777, true);
                     }
-                    $file = "{$dir}{$imgKey}.jpeg";
 
-                    if (!file_exists($file)) {
+                    $file = "{$dir}{$md5}.jpeg";
+                    $f = fopen($file, 'w+');
+                    $img = $body;
+                    fwrite($f, $img);
+                    fclose($f);
+                    $randCode = new RandCode();
+                    $randCode->md5 = $md5;
+                    $randCode->value = '';
+                    $randCode->path = $baseDir . "{$md5}.jpeg";
+                    $randCode->save();
 
-                        $f = fopen($file, 'w+');
-                        $img = $body;
-                        fwrite($f, $img);
-                        fclose($f);
-                        $randCode = new RandCode();
-                        $randCode->key = $imgKey;
-                        $randCode->value = '';
-                        $randCode->path = $baseDir . "{$imgKey}.jpeg";
-                        $randCode->save();
-                    }
-                } else {
-
-                    goto Y;
                 }
-            } else {
-                //保证 1k次有效
-                goto Y;
             }
         }
+        return true;
 
     }
 
