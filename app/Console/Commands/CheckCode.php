@@ -12,14 +12,14 @@ class CheckCode extends Command
      *
      * @var string
      */
-    protected $signature = 'command:name';
+    protected $signature = 'check:code';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'check code';
 
     /**
      * Create a new command instance.
