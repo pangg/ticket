@@ -31,6 +31,8 @@ class VerificationCode extends Command
         parent::__construct();
     }
 
+    protected $sleep = 1;
+
     /**
      * Execute the console command.
      *
@@ -45,7 +47,7 @@ class VerificationCode extends Command
         $times = 0;
         while (true) {
 
-            $imgUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 9999);
+            $imgUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 99999);
             $this->request($imgUrl, true, [], false, $body, $head);
             if ($body != '' && $head != '') {
 
@@ -73,11 +75,15 @@ class VerificationCode extends Command
                     $randCode->path = $baseDir . "{$md5}.jpeg";
                     $randCode->save();
 
-                    $times ++;
+                    $times++;
                     if ($times == 1000) {
                         return true;
                     }
 
+                } else {
+
+                    $rand_code->times = $rand_code->times++;
+                    $rand_code->save();
                 }
             }
         }
@@ -129,6 +135,8 @@ class VerificationCode extends Command
 
             $this->error(curl_error($curl));
             curl_close($curl);
+            $this->sleep = $this->sleep < 120 ? $this->sleep++ : 1;
+            sleep($this->sleep);
             return '';
         } else {
             $headerSize = curl_getinfo($curl, CURLINFO_HEADER_SIZE);

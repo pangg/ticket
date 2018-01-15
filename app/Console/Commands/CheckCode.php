@@ -51,54 +51,29 @@ class CheckCode extends Command
 
                 $md5 = md5($body);
                 $has_rand = RandCode::where('md5', '=', $md5)->first();
-                if ($has_rand == null) {
+                if ($has_rand != null && $has_rand->value != '' && $has_rand->is_ok = 0) {
 
-                    $date = date('Y-m-d', time());
-                    $baseDir = "/uploads/img/{$date}/";
+                    $checkYan = 'https://kyfw.12306.cn/passport/captcha/captcha-check'; //post
+                    $checkData = [
+                        'answer' => $has_rand->value,
+                        'login_site' => 'E',
+                        'rand' => 'sjrand'
+                    ];
+                    $this->request($checkYan, false, $checkData, false, $cookieArray, $body, $head);
+                    $json = json_decode($body, true);
+                    $this->info('验证码返回' . $body);
+                    if ($json['result_code'] != "4") {
 
-                    $dir = app()->publicPath() . $baseDir;
-                    if (!is_dir($dir)) {
+                        unset($cookieArray['_passport_session']);
+                        unset($cookieArray['_passport_ct']);
+                        Log::error('picture id: '.$has_rand->id .' check fail');
 
-                        mkdir($dir, 0777, true);
+                    } else {
+
+                        $has_rand->is_ok = 1;
+                        $has_rand->save();
                     }
 
-                    $file = "{$dir}{$md5}.jpeg";
-                    $f = fopen($file, 'w+');
-                    $img = $body;
-                    fwrite($f, $img);
-                    fclose($f);
-                    $randCode = new RandCode();
-                    $randCode->md5 = $md5;
-                    $randCode->value = '';
-                    $randCode->path = $baseDir . "{$md5}.jpeg";
-                    $randCode->is_ok = 0;
-                    $randCode->save();
-                } else {
-
-                    if ($has_rand->value != '' && $has_rand->is_ok = 0) {
-
-                        $checkYan = 'https://kyfw.12306.cn/passport/captcha/captcha-check'; //post
-                        $checkData = [
-                            'answer' => $has_rand->value,
-                            'login_site' => 'E',
-                            'rand' => 'sjrand'
-                        ];
-                        $this->request($checkYan, false, $checkData, false, $cookieArray, $body, $head);
-                        $json = json_decode($body, true);
-                        $this->info('验证码返回' . $body);
-                        if ($json['result_code'] != "4") {
-
-                            unset($cookieArray['_passport_session']);
-                            unset($cookieArray['_passport_ct']);
-                            Log::error('picture id: '.$has_rand->id .' check fail');
-
-                        } else {
-
-                            $has_rand->is_ok = 1;
-                            $has_rand->save();
-                        }
-
-                    }
                 }
 
             }

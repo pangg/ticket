@@ -321,11 +321,10 @@ class Ticket extends Command
                     }
                     //整理结果集 end
                     $this->show($headCol, $result);
-                    //todo 匹配车次和座位类型
 
                     foreach ($result as $item) {
 
-                        // 如果存在车票
+                        // 如果存在车票 车次匹配
                         if ($item['ok'] && $item['cc'] == $tripsCode) {
 
                             $submitOrderRequestUrl = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest';
