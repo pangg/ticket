@@ -11,6 +11,11 @@
 <img src="{{$randCode->path}}" alt="" id="image">
 <br>
 <label for="" id="value">当前答案: {{$randCode->value}}</label>
+@if($randCode->is_ok == 0)
+    <p style="color: red">未验证</p>
+@else
+    <p style="color: green">已验证</p>
+@endif
 <br>
 <form action="" method="post">
     {{csrf_field()}}

@@ -87,7 +87,7 @@ class CheckCode extends Command
 
                         unset($cookieArray['_passport_session']);
                         unset($cookieArray['_passport_ct']);
-
+                        $this->error('picture id: '.$has_rand->id .' check fail');
 
                     } else {
 
