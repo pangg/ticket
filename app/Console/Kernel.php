@@ -16,6 +16,7 @@ class Kernel extends ConsoleKernel
         //
         'App\Console\Commands\VerificationCode',
         'App\Console\Commands\Ticket',
+        'App\Console\Commands\CheckCode',
     ];
 
     /**

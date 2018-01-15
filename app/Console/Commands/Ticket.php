@@ -479,8 +479,10 @@ class Ticket extends Command
         $res = curl_exec($curl);
         if (curl_getinfo($curl, CURLINFO_HTTP_CODE) != 200) {
 
-            printf(curl_error($curl));
+            $this->error(curl_error($curl));
             curl_close($curl);
+            $body = '';
+            $head = '';
             return '';
         } else {
 
