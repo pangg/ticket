@@ -521,7 +521,7 @@ class Ticket extends Command
             $initUrl = 'https://kyfw.12306.cn/otn/login/init';
             $this->request($initUrl, true, [], false, $cookieArray, $body, $head);
             Yan:
-            $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&amp;rand=sjrand&;' . mt_rand(0, 999);
+            $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 999);
             while (true) {
 
                 $this->request($yanUrl, true, [], false, $cookieArray, $body, $head);

@@ -44,7 +44,7 @@ class CheckCode extends Command
         $body = '';
         while (true) {
 
-            $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&amp;rand=sjrand&;' . mt_rand(0, 999);
+            $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 999);
             $this->request($yanUrl, true, [], false, $cookieArray, $body, $head);
             $md5 = md5($body);
             $has_rand = RandCode::where('md5', '=', $md5)->first();
