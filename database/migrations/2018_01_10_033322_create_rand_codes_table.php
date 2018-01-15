@@ -18,6 +18,7 @@ class CreateRandCodesTable extends Migration
             $table->string('md5',100);
             $table->string('value',50);
             $table->string('path',255);
+            $table->smallInteger('is_ok')->default(0);
 
             $table->integer('created_at');
             $table->integer('updated_at');
