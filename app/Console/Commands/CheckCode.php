@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Model\RandCode;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class CheckCode extends Command
 {
@@ -89,7 +90,7 @@ class CheckCode extends Command
 
                             unset($cookieArray['_passport_session']);
                             unset($cookieArray['_passport_ct']);
-                            $this->error('picture id: '.$has_rand->id .' check fail');
+                            Log::error('picture id: '.$has_rand->id .' check fail');
 
                         } else {
 
