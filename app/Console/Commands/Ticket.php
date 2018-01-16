@@ -32,31 +32,49 @@ class Ticket extends Command
         ],
         2 => [
             'index' => 2,
+            'name' => '软座',
+            'value' => '2',
+            'key' => 'rz',
+        ],
+        3 => [
+            'index' => 3,
             'name' => '硬卧',
             'value' => '3',
             'key' => 'yw',
 
         ],
-        3 => [
-            'index' => 3,
+        4 => [
+            'index' => 4,
             'name' => '软卧',
             'value' => '4',
             'key' => 'rw',
         ],
-        4 => [
-            'index' => 4,
+        5 => [
+            'index' => 5,
+            'name' => '高级软卧',
+            'value' => '6',
+            'key' => 'gjrw',
+        ],
+        6 => [
+            'index' => 6,
             'name' => '商务座',
             'value' => '9',
             'key' => 'swz',
         ],
-        5 => [
-            'index' => 5,
+        7 => [
+            'index' => 7,
+            'name' => '动卧',
+            'value' => 'F',
+            'key' => 'dw',
+        ],
+        8 => [
+            'index' => 8,
             'name' => '一等座',
             'value' => 'M',
             'key' => 'ydz',
         ],
-        6 => [
-            'index' => 6,
+        9 => [
+            'index' => 9,
             'name' => '二等座',
             'value' => 'O',
             'key' => 'edz',
@@ -189,16 +207,16 @@ class Ticket extends Command
                         'rw' => $d[23], //软卧 ok
                         'dw' => $d[33], //动卧 ok
                         'yw' => $d[28], //硬卧 ok
-                        'rz' => $d[3],  //软座
+                        'rz' => $d[24], //软座 ok
                         'yz' => $d[29], //硬座 ok
                         'wz' => $d[26], //无座 ok
                         'qt' => $d[22], //其他 ok
-                        'ok' => $d[0] == '' ? false : true, //是否可订票 ok
+                        'ok' => $d[0] == '' ? 'NO' : 'YES', //是否可订票 ok
                     ];
 
                 }
                 $this->info('已为你查询到以下车次');
-                $this->table($headCol, $tripsResult);
+                $this->table($headCol, $tripsResult, 'default');
                 $tripsIndex = $this->ask('请选择有效车次序号!');
                 if (!isset($tripsResult[$tripsIndex - 1])) {
 
@@ -214,7 +232,7 @@ class Ticket extends Command
             }
             $this->info("您选择的车次是：{$tripsCode}");
             selectSiteIndex:
-            $this->table(['序号', '座位类型', '座位字段', '座位索引'], $this->siteType);
+            $this->table(['序号', '座位类型', '座位字段', '座位索引'], $this->siteType, 'default');
             $siteIndex = $this->ask('请选择座位类型 请对应车次类型');
             if (array_key_exists($siteIndex, $this->siteType)) {
 
@@ -260,7 +278,7 @@ class Ticket extends Command
                 ];
 
             }
-            $this->table($headCol, $passengerRes);
+            $this->table($headCol, $passengerRes, 'default');
             $userList = $this->ask('请选择乘车人 如果多人请以英文逗号分隔 ","!');
             $userArray = explode(',', $userList);
             foreach ($userArray as $value) {
@@ -335,22 +353,22 @@ class Ticket extends Command
                             'rw' => ($d[23] == '' || $d[23] == '无' || $d[23] == 0) ? '无' : '有', //软卧 ok
                             'dw' => ($d[33] == '' || $d[33] == '无' || $d[33] == 0) ? '无' : '有', //动卧 ok
                             'yw' => ($d[28] == '' || $d[28] == '无' || $d[28] == 0) ? '无' : '有', //硬卧 ok
-                            'rz' => $d[3],  //软座
+                            'rz' => ($d[24] == '' || $d[24] == '无' || $d[24] == 0) ? '无' : '有', //软座 ok
                             'yz' => ($d[29] == '' || $d[29] == '无' || $d[29] == 0) ? '无' : '有', //硬座 ok
                             'wz' => ($d[26] == '' || $d[26] == '无' || $d[26] == 0) ? '无' : '有', //无座 ok
                             'qt' => ($d[22] == '' || $d[22] == '无' || $d[22] == 0) ? '无' : '有', //其他 ok
-                            'ok' => $d[0] == '' ? false : true, //是否可订票 ok
+                            'ok' => $d[0] == '' ? 'NO' : 'YES', //是否可订票 ok
                             'secretStr' => urldecode($d[0])     //当前车次标记
                         ];
 
                     }
                     //整理结果集 end
-                    $this->table($headCol, $result);
+                    $this->table($headCol, $result, 'default');
 
                     foreach ($result as $item) {
 
                         // 如果存在车票 车次匹配 座位匹配
-                        if ($item['ok'] && $item['cc'] == $tripsCode && $item[$site_key] === '有') {
+                        if ($item['ok'] === 'YES' && $item['cc'] == $tripsCode && $item[$site_key] === '有') {
 
                             $submitOrderRequestUrl = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest';
 
