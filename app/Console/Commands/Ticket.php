@@ -97,23 +97,23 @@ class Ticket extends Command
     public function handle()
     {
         //
-        $username = $this->ask('12306 用户名');
-        $password = $this->ask('12306 密码');
+        $username = '13902456525';//$this->ask('12306 用户名');
+        $password = 'xwj123456';//$this->ask('12306 密码');
         $cookieArray = [];
         $head = '';
         $body = '';
-        $train_date = $this->ask('请输入去程日期 格式：' . date('Y-m-d'));
-        $back_train_date = $this->ask('请输入反程日期 格式：' . date('Y-m-d'));
-//        $train_date = '2018-02-10';
-//        $back_train_date = '2018-02-10';
+//        $train_date = $this->ask('请输入去程日期 格式：' . date('Y-m-d'));
+//        $back_train_date = $this->ask('请输入反程日期 格式：' . date('Y-m-d'));
+        $train_date = '2018-02-10';
+        $back_train_date = '2018-02-10';
         $from_name = '';
         $from_code = '';
         $to_name = '';
         $to_code = '';
         while (true) {
 
-            $from_name = $this->ask('从哪里出发?');
-//            $from_name = '深圳东';
+//            $from_name = $this->ask('从哪里出发?');
+            $from_name = '深圳';
             $v = Config::get('ticket.address.' . $from_name);
             if ($v != null) {
 
@@ -124,8 +124,8 @@ class Ticket extends Command
         }
         while (true) {
 
-            $to_name = $this->ask('到哪里去?');
-//            $to_name = '重庆北';
+//            $to_name = $this->ask('到哪里去?');
+            $to_name = '龙南';
             $v = Config::get('ticket.address.' . $to_name);
             if ($v != null) {
 
@@ -242,14 +242,18 @@ class Ticket extends Command
             $passengerTicketStr = '';
             $oldPassengerStr = '';
             $passengerRes = [];
+            $passengerResIndex = 0;
             foreach ($passengerJson as $item) {
 
+                $passengerResIndex++;
                 $headCol = [
+                    '序号',
                     '姓名',
                     '身份证号',
                     '手机号',
                 ];
                 $passengerRes[] = [
+                    'index' => $passengerResIndex,
                     'name' => $item['passenger_name'],
                     'idCard' => $item['passenger_id_no'],
                     'phone' => $item['mobile_no'],
@@ -659,13 +663,14 @@ class Ticket extends Command
                         $uamtkClientUrl = 'https://kyfw.12306.cn/otn/uamauthclient';
                         $this->request($uamtkClientUrl, false, ['tk' => $tk], false, $cookieArray, $body, $head);
                         $this->info('uamtkclient');
-                        $this->info($body);
+                        if ($body == '') {
+
+                            goto uamauthclient;
+                        }
                         $uamtkClientJson = json_decode($body, true);
                         if ($uamtkClientJson['result_code'] == 0) {
 
                             return true;
-                        } else {
-                            goto uamauthclient;
                         }
                     }
                     goto Check;
