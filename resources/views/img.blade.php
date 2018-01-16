@@ -11,10 +11,11 @@
 <img src="{{$randCode->path}}" alt="" id="image">
 <br>
 <label for="" id="value">当前答案: {{$randCode->value}}</label>
+<br>
 @if($randCode->is_ok == 0)
-    <p style="color: red">未验证</p>
+    <label style="color: red">未验证</label>
 @else
-    <p style="color: green">已验证</p>
+    <label style="color: green">已验证</label>
 @endif
 <br>
 <form action="" method="post">
