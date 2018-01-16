@@ -133,7 +133,6 @@ class VerificationCode extends Command
         $res = curl_exec($curl);
         if (curl_getinfo($curl, CURLINFO_HTTP_CODE) != 200) {
 
-            $this->error(curl_error($curl));
             curl_close($curl);
             $this->sleep = $this->sleep < 120 ? $this->sleep++ : 1;
             sleep($this->sleep);

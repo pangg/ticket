@@ -23,6 +23,46 @@ class Ticket extends Command
      */
     protected $description = 'Ticket begin';
 
+    protected $siteType = [
+        1 => [
+            'index' => 1,
+            'name' => '硬座',
+            'value' => '1',
+            'key' => 'yz',
+        ],
+        2 => [
+            'index' => 2,
+            'name' => '硬卧',
+            'value' => '3',
+            'key' => 'yw',
+
+        ],
+        3 => [
+            'index' => 3,
+            'name' => '软卧',
+            'value' => '4',
+            'key' => 'rw',
+        ],
+        4 => [
+            'index' => 4,
+            'name' => '商务座',
+            'value' => '9',
+            'key' => 'swz',
+        ],
+        5 => [
+            'index' => 5,
+            'name' => '一等座',
+            'value' => 'M',
+            'key' => 'ydz',
+        ],
+        6 => [
+            'index' => 6,
+            'name' => '二等座',
+            'value' => 'O',
+            'key' => 'edz',
+        ],
+    ];
+
 
     /**
      * Create a new command instance.
@@ -48,31 +88,6 @@ class Ticket extends Command
     {
         parent::error("\e[31m " . $string . " \e[31m", $verbosity);
     }
-
-    public function show(array $rowName = [], array $data)
-    {
-        $i = 0;
-        foreach ($data as $item) {
-
-            $write = "";
-
-            $i++;
-
-            $write .= "- \e[31m {$i}\e[31m ";
-
-            foreach ($item as $key => $value) {
-
-                $str = "\e[34m | {$rowName[$key]}\e[34m : \e[32m[  {$value} ";
-                while (mb_strlen($str) < 30) {
-
-                    $str .= " ";
-                }
-                $write .= $str . " ]\e[32m";
-            }
-            $this->info($write);
-        }
-    }
-
 
     /**
      * Execute the console command.
@@ -135,31 +150,34 @@ class Ticket extends Command
             if ($tripsJson['httpstatus'] == 200) {
 
                 $headCol = [
-                    'cc' => '车次',
-                    'cf' => '出发时间',
-                    'dd' => '到达时间',
-                    'ls' => '历时',
-                    'swz' => '商务座/特等座',
-                    'ydz' => '一等座',
-                    'edz' => '二等座',
-                    'gjrw' => '高级软卧',
-                    'rw' => '软卧',
-                    'dw' => '动卧',
-                    'yw' => '硬卧',
-                    'rz' => '软座',
-                    'yz' => '硬座',
-                    'wz' => '无座',
-                    'qt' => '其他',
-                    'ok' => '是否可订票',
+                    '序号',
+                    '车次',
+                    '出发时间',
+                    '到达时间',
+                    '历时',
+                    '商务座/特等座',
+                    '一等座',
+                    '二等座',
+                    '高级软卧',
+                    '软卧',
+                    '动卧',
+                    '硬卧',
+                    '软座',
+                    '硬座',
+                    '无座',
+                    '其他',
+                    '是否可订票',
                 ];
 
                 $tripsResult = [];
+                $tripsResultIndex = 0;
                 //整理结果集 begin
                 foreach ($tripsJson['data']['result'] as $item) {
 
                     $d = explode('|', $item);
-
+                    $tripsResultIndex++;
                     $tripsResult[] = [
+                        'index' => $tripsResultIndex,
                         'cc' => $d[3],  //车次
                         'cf' => $d[8],  //出发时间
                         'dd' => $d[9],  //到达时间
@@ -180,7 +198,7 @@ class Ticket extends Command
 
                 }
                 $this->info('已为你查询到以下车次');
-                $this->show($headCol, $tripsResult);
+                $this->table($headCol, $tripsResult);
                 $tripsIndex = $this->ask('请选择有效车次序号!');
                 if (!isset($tripsResult[$tripsIndex - 1])) {
 
@@ -194,20 +212,20 @@ class Ticket extends Command
 
                 goto tripsFind;
             }
-            $b = substr($tripsCode, 0, 1);
-            //这个地方是判断座位类别
-            $site_type = '';
-            if ($b == 'K') {
-                $site_type = '1';
+            $this->info("您选择的车次是：{$tripsCode}");
+            selectSiteIndex:
+            $this->table(['序号', '座位类型', '座位字段', '座位索引'], $this->siteType);
+            $siteIndex = $this->ask('请选择座位类型 请对应车次类型');
+            if (array_key_exists($siteIndex, $this->siteType)) {
 
-            } else if ($b == 'G' || $b == 'D') {
-
-                $site_type = 'O';
+                $site_type = $this->siteType[$siteIndex]['value'];
+                $site_key = $this->siteType[$siteIndex]['key'];
             } else {
-                $this->error('没有匹配的座位类别');
-                exit(0);
-            }
 
+                $this->error('选择错误,请重新选择');
+                goto selectSiteIndex;
+            }
+            $this->info("site_type : {$site_type} site_key: {$site_key}");
             //获取/确认乘车人
             GetPassenger:
             $passengersUrl = 'https://kyfw.12306.cn/otn/passengers/init';
@@ -227,9 +245,9 @@ class Ticket extends Command
             foreach ($passengerJson as $item) {
 
                 $headCol = [
-                    'name' => '姓名',
-                    'idCard' => '身份证号',
-                    'phone' => '手机号',
+                    '姓名',
+                    '身份证号',
+                    '手机号',
                 ];
                 $passengerRes[] = [
                     'name' => $item['passenger_name'],
@@ -238,7 +256,7 @@ class Ticket extends Command
                 ];
 
             }
-            $this->show($headCol, $passengerRes);
+            $this->table($headCol, $passengerRes);
             $userList = $this->ask('请选择乘车人 如果多人请以英文逗号分隔 ","!');
             $userArray = explode(',', $userList);
             foreach ($userArray as $value) {
@@ -274,58 +292,61 @@ class Ticket extends Command
                 if ($queryJson['httpstatus'] == 200) {
 
                     $headCol = [
-                        'cc' => '车次',
-                        'cf' => '出发时间',
-                        'dd' => '到达时间',
-                        'ls' => '历时',
-                        'swz' => '商务座/特等座',
-                        'ydz' => '一等座',
-                        'edz' => '二等座',
-                        'gjrw' => '高级软卧',
-                        'rw' => '软卧',
-                        'dw' => '动卧',
-                        'yw' => '硬卧',
-                        'rz' => '软座',
-                        'yz' => '硬座',
-                        'wz' => '无座',
-                        'qt' => '其他',
-                        'ok' => '是否可订票',
-                        'secretStr' => '车次标记',
+                        '序号',
+                        '车次',
+                        '出发时间',
+                        '到达时间',
+                        '历时',
+                        '商务座/特等座',
+                        '一等座',
+                        '二等座',
+                        '高级软卧',
+                        '软卧',
+                        '动卧',
+                        '硬卧',
+                        '软座',
+                        '硬座',
+                        '无座',
+                        '其他',
+                        '是否可订票',
+                        '车次标记',
                     ];
                     $result = [];
+                    $resultIndex = 0;
                     //整理结果集 begin
                     foreach ($queryJson['data']['result'] as $item) {
 
                         $d = explode('|', $item);
-
+                        $resultIndex++;
                         $result[] = [
+                            'index' => $resultIndex,
                             'cc' => $d[3],  //车次
                             'cf' => $d[8],  //出发时间
                             'dd' => $d[9],  //到达时间
                             'ls' => $d[10], //历时
-                            'swz' => $d[32], //商务座/特等座 ok
-                            'ydz' => $d[31], //一等座 ok
-                            'edz' => $d[30], //二等座 ok
-                            'gjrw' => $d[21], //高级软卧 21
-                            'rw' => $d[23], //软卧 ok
-                            'dw' => $d[33], //动卧 ok
-                            'yw' => $d[28], //硬卧 ok
+                            'swz' => ($d[32] == '' || $d[32] == '无' || $d[32] == 0) ? '无' : '有', //商务座/特等座 ok
+                            'ydz' => ($d[31] == '' || $d[31] == '无' || $d[31] == 0) ? '无' : '有', //一等座 ok
+                            'edz' => ($d[30] == '' || $d[31] == '无' || $d[30] == 0) ? '无' : '有', //二等座 ok
+                            'gjrw' => ($d[21] == '' || $d[21] == '无' || $d[21] == 0) ? '无' : '有', //高级软卧 21
+                            'rw' => ($d[23] == '' || $d[23] == '无' || $d[23] == 0) ? '无' : '有', //软卧 ok
+                            'dw' => ($d[33] == '' || $d[33] == '无' || $d[33] == 0) ? '无' : '有', //动卧 ok
+                            'yw' => ($d[28] == '' || $d[28] == '无' || $d[28] == 0) ? '无' : '有', //硬卧 ok
                             'rz' => $d[3],  //软座
-                            'yz' => $d[29], //硬座 ok
-                            'wz' => $d[26], //无座 ok
-                            'qt' => $d[22], //其他 ok
+                            'yz' => ($d[29] == '' || $d[29] == '无' || $d[29] == 0) ? '无' : '有', //硬座 ok
+                            'wz' => ($d[26] == '' || $d[26] == '无' || $d[26] == 0) ? '无' : '有', //无座 ok
+                            'qt' => ($d[22] == '' || $d[22] == '无' || $d[22] == 0) ? '无' : '有', //其他 ok
                             'ok' => $d[0] == '' ? false : true, //是否可订票 ok
                             'secretStr' => urldecode($d[0])     //当前车次标记
                         ];
 
                     }
                     //整理结果集 end
-                    $this->show($headCol, $result);
+                    $this->table($headCol, $result);
 
                     foreach ($result as $item) {
 
-                        // 如果存在车票 车次匹配
-                        if ($item['ok'] && $item['cc'] == $tripsCode) {
+                        // 如果存在车票 车次匹配 座位匹配
+                        if ($item['ok'] && $item['cc'] == $tripsCode && $item[$site_key] === '有') {
 
                             $submitOrderRequestUrl = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest';
 
@@ -478,7 +499,6 @@ class Ticket extends Command
         $res = curl_exec($curl);
         if (curl_getinfo($curl, CURLINFO_HTTP_CODE) != 200) {
 
-            $this->error(curl_error($curl));
             curl_close($curl);
             $body = '';
             $head = '';
@@ -556,6 +576,7 @@ class Ticket extends Command
                 $randCode->md5 = $md5;
                 $randCode->value = '';
                 $randCode->path = $baseDir . "{$md5}.jpeg";
+                $randCode->times = 0;
                 $randCode->save();
                 $this->info('请打开页面' . URL::to('/image') . '/' . $randCode->id);
                 $lng = $this->ask('请输入图片坐标?');
@@ -567,6 +588,7 @@ class Ticket extends Command
                     $this->info('请打开页面' . URL::to('/image') . '/' . $has_rand->id);
                     $lng = $this->ask('请输入图片坐标?');
                 } else {
+
                     $lng = $has_rand->value;
 
                 }
@@ -593,12 +615,12 @@ class Ticket extends Command
 
                 if ($has_rand == null) {
 
-                    $randCode->value= $lng;
+                    $randCode->value = $lng;
                     $randCode->save();
 
                 } else {
 
-                    $has_rand->value= $lng;
+                    $has_rand->value = $lng;
                     $has_rand->save();
                 }
 
@@ -633,6 +655,7 @@ class Ticket extends Command
 
                         $tk = $uamtkJson['newapptk'];
 
+                        uamauthclient:
                         $uamtkClientUrl = 'https://kyfw.12306.cn/otn/uamauthclient';
                         $this->request($uamtkClientUrl, false, ['tk' => $tk], false, $cookieArray, $body, $head);
                         $this->info('uamtkclient');
@@ -641,6 +664,8 @@ class Ticket extends Command
                         if ($uamtkClientJson['result_code'] == 0) {
 
                             return true;
+                        } else {
+                            goto uamauthclient;
                         }
                     }
                     goto Check;
