@@ -460,7 +460,7 @@ class Ticket extends Command
                                     if ($confirmSingleForQueueRes['httpstatus'] == 200 && $confirmSingleForQueueRes['status'] == true) {
 
                                         $this->info('订单完成 : confirmSingleForQueue');
-                                        exit(0);
+                                        return true;
                                     }
 
                                 }
@@ -475,6 +475,7 @@ class Ticket extends Command
             }
 
         }
+        return true;
 
     }
 
@@ -633,18 +634,8 @@ class Ticket extends Command
                 $this->info($json['result_message']);
                 $this->info('准备重新获取验证码');
                 goto Yan;
+
             } else {
-
-                if ($has_rand == null) {
-
-                    $randCode->value = $lng;
-                    $randCode->save();
-
-                } else {
-
-                    $has_rand->value = $lng;
-                    $has_rand->save();
-                }
 
                 $this->info('验证码通过...');
 
