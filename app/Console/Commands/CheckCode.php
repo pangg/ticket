@@ -51,7 +51,7 @@ class CheckCode extends Command
 
                 $md5 = md5($body);
                 $has_rand = RandCode::where('md5', '=', $md5)->first();
-                if ($has_rand != null && $has_rand->value != '' && $has_rand->is_ok = 0) {
+                if ($has_rand != null && $has_rand->value != '' && $has_rand->is_ok == 0) {
 
                     $checkYan = 'https://kyfw.12306.cn/passport/captcha/captcha-check'; //post
                     $checkData = [
