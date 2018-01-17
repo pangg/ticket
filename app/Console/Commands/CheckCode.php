@@ -45,6 +45,7 @@ class CheckCode extends Command
         $body = '';
         while (true) {
 
+            sleep(2);
             $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 999);
             $this->request($yanUrl, true, [], false, $cookieArray, $body, $head);
             if ($body != '' && $head != '') {
@@ -64,8 +65,7 @@ class CheckCode extends Command
                     $this->info('验证码返回' . $body);
                     if ($json['result_code'] != "4") {
 
-                        unset($cookieArray['_passport_session']);
-                        unset($cookieArray['_passport_ct']);
+                        $cookieArray = [];
                         Log::error('picture id: '.$has_rand->id .' check fail');
 
                     } else {
