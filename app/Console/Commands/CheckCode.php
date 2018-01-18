@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Model\ErrorLog;
 use App\Model\RandCode;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
 class CheckCode extends Command
 {
