@@ -553,7 +553,6 @@ class Ticket extends Command
         Check:
         //验证用户登录状态
         $checkUserLoginUrl = 'https://kyfw.12306.cn/otn/login/checkUser';
-        //todo 这块是用户登录验证
         $body = '';
         $head = '';
         $this->request($checkUserLoginUrl, false, ['_json_att' => ''], false, $cookieArray, $body, $head);
