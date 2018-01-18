@@ -63,7 +63,7 @@ class CheckCode extends Command
                     ];
                     $this->request($checkYan, false, $checkData, false, $cookieArray, $body, $head);
                     $json = json_decode($body, true);
-                    $this->info('验证码返回' . $body);
+
                     if ($json['result_code'] != "4") {
 
                         $cookieArray = [];
