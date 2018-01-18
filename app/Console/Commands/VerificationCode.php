@@ -12,7 +12,7 @@ class VerificationCode extends Command
      *
      * @var string
      */
-    protected $signature = 'verification_code:get {date}';
+    protected $signature = 'verification_code:get';
 
     /**
      * The console command description.
@@ -41,7 +41,6 @@ class VerificationCode extends Command
     public function handle()
     {
         //
-        $date = $this->argument('date');
         $body = '';
         $head = '';
         $times = 0;
@@ -55,7 +54,7 @@ class VerificationCode extends Command
                 $rand_code = RandCode::where('md5', '=', $md5)->first();
                 if ($rand_code == null) {
 
-//                    $date = date('Y-m-d', time());
+                    $date = date('Y-m-d', time());
                     $baseDir = "/uploads/img/{$date}/";
 
                     $dir = app()->publicPath() . $baseDir;
