@@ -575,51 +575,17 @@ class Ticket extends Command
 
             $md5 = md5($body);
 
-            $date = date('Y-m-d', time());
-            $baseDir = "/uploads/img/{$date}/";
+            $randCode = RandCode::where('md5', '=', $md5)
+                ->where('is_ok','=','1')->first();
+            if ($randCode == null) {
 
-            $dir = app()->publicPath() . $baseDir;
-            if (!is_dir($dir)) {
-
-                mkdir($dir, 0777, true);
-            }
-            $has_rand = RandCode::where('md5', '=', $md5)->first();
-            $randCode = null;
-            if ($has_rand == null) {
-
-                $this->info('未能在数据库中找到答案,请手动输入');
-
-                $file = "{$dir}{$md5}.jpeg";
-                $f = fopen($file, 'w+');
-                $img = $body;
-                fwrite($f, $img);
-                fclose($f);
-                $randCode = new RandCode();
-                $randCode->md5 = $md5;
-                $randCode->value = '';
-                $randCode->path = $baseDir . "{$md5}.jpeg";
-                $randCode->times = 0;
-                $randCode->save();
-                $this->info('请打开页面' . URL::to('/image') . '/' . $randCode->id);
-                $lng = $this->ask('请输入图片坐标?');
-            } else {
-
-                if ($has_rand->value == '') {
-
-                    $this->error('数据库存在,但是没有答案');
-                    $this->info('请打开页面' . URL::to('/image') . '/' . $has_rand->id);
-                    $lng = $this->ask('请输入图片坐标?');
-                } else {
-
-                    $lng = $has_rand->value;
-
-                }
-
+                $this->info('未找到验证码答案，或验证码答案未验证');
+                goto Yan;
             }
             //验证码 验证
             $checkYan = 'https://kyfw.12306.cn/passport/captcha/captcha-check'; //post
             $checkData = [
-                'answer' => $lng,
+                'answer' => $randCode->value,
                 'login_site' => 'E',
                 'rand' => 'sjrand'
             ];
