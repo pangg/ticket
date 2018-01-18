@@ -566,14 +566,13 @@ class Ticket extends Command
             $this->request($initUrl, true, [], false, $cookieArray, $body, $head);
             Yan:
             $yanUrl = 'https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&' . mt_rand(0, 999);
-            while (true) {
+            $this->request($yanUrl, true, [], false, $cookieArray, $body, $head);
+            if ($body == '') {
 
-                $this->request($yanUrl, true, [], false, $cookieArray, $body, $head);
-                if ($body !== '') {
-
-                    break;
-                }
+                $this->error('验证码获取失败,准备重试');
+                goto Yan;
             }
+
             $md5 = md5($body);
 
             $date = date('Y-m-d', time());
@@ -632,7 +631,7 @@ class Ticket extends Command
                 unset($cookieArray['_passport_session']);
                 unset($cookieArray['_passport_ct']);
                 $this->info($json['result_message']);
-                $this->info('准备重新获取验证码');
+                $this->info('验证失败,准备重新获取验证码');
                 goto Yan;
 
             } else {

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Model\ErrorLog;
 use App\Model\RandCode;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -66,12 +67,19 @@ class CheckCode extends Command
                     if ($json['result_code'] != "4") {
 
                         $cookieArray = [];
-                        Log::error('picture id: '.$has_rand->id .' check fail');
+                        $errorLog = ErrorLog::where('rand_code_id', '=', $has_rand->id)->first();
+                        if ($errorLog == null) {
+
+                            $errorLog = new ErrorLog();
+                            $errorLog->rand_code_id = $has_rand->id;
+                            $errorLog->save();
+                        }
 
                     } else {
 
                         $has_rand->is_ok = 1;
                         $has_rand->save();
+                        ErrorLog::where('rand_code_id', '=', $has_rand->id)->delete();
                     }
 
                 }
