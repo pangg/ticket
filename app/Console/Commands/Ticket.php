@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use App\Model\RandCode;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\URL;
+
 
 class Ticket extends Command
 {
@@ -368,7 +368,7 @@ class Ticket extends Command
                     foreach ($result as $item) {
 
                         // 如果存在车票 车次匹配 座位匹配
-                        if ($item['ok'] === 'YES' && $item['cc'] == $tripsCode && ($item[$site_key] == '有' || (integer)$item[$site_key]) > 0) {
+                        if ($item['ok'] === 'YES' && $item['cc'] == $tripsCode && ($item[$site_key] === '有' || (integer)$item[$site_key]) > 0) {
 
                             $submitOrderRequestUrl = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest';
 
@@ -452,7 +452,7 @@ class Ticket extends Command
                                 }
                                 $this->info('checkOrderInfo : ' . $body);
                                 $checkOrderInfoDataJson = json_decode($body, true);
-                                if ($checkOrderInfoDataJson['httpstatus'] == 200 && $checkOrderInfoDataJson['status'] == true) {
+                                if ($checkOrderInfoDataJson['httpstatus'] == 200 && $checkOrderInfoDataJson['data']['submitStatus'] == true) {
 
                                     $this->info('验证订单返回成功');
                                     $confirm = 'https://kyfw.12306.cn/otn/confirmPassenger/confirmSingleForQueue';
@@ -480,13 +480,20 @@ class Ticket extends Command
                                     }
                                     $this->info('confirm : ' . $body);
                                     $confirmSingleForQueueRes = json_decode($body, true);
-                                    if ($confirmSingleForQueueRes['httpstatus'] == 200 && $confirmSingleForQueueRes['status'] == true) {
+                                    if ($confirmSingleForQueueRes['httpstatus'] == 200 && $confirmSingleForQueueRes['status']['submitStatus'] == true) {
 
                                         $this->info('订单完成 : confirmSingleForQueue');
                                         return true;
+                                    } else {
+
+                                        $this->error($confirmSingleForQueueRes['data']['errMsg']);
                                     }
 
+                                } else {
+
+                                    $this->error($checkOrderInfoDataJson['data']['errMsg']);
                                 }
+
 
                             }
 
