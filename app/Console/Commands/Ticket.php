@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Model\RandCode;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
 
@@ -604,21 +603,14 @@ class Ticket extends Command
                 $this->error('验证码获取失败,准备重试');
                 goto GetYan;
             }
-
-            $md5 = md5($body);
-
-            $randCode = RandCode::where('md5', '=', $md5)
-                ->where('is_ok', '=', '1')->first();
-            if ($randCode == null) {
-
-                $this->info('未找到验证码答案，或验证码答案未验证');
-                goto GetYan;
-            }
+            file_put_contents(app()->publicPath().'/code.jpeg',$body);
+            $this->info('打开页面，单击获取坐标');
+            $answer = $this->ask('请输入坐标');
             //验证码 验证
             CheckYan:
             $checkYan = 'https://kyfw.12306.cn/passport/captcha/captcha-check'; //post
             $checkData = [
-                'answer' => $randCode->value,
+                'answer' => $answer,
                 'login_site' => 'E',
                 'rand' => 'sjrand'
             ];

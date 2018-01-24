@@ -8,27 +8,14 @@
 
 </head>
 <body>
-<img src="{{$randCode->path}}" alt="" id="image">
+<div id="div">
+    <img src="/code.jpeg" alt="" id="image" v-on:click="imageClick">
+    <br>
+    <input type="text" v-model="val" value="@{{val}}">
+    <button type="button" v-on:click="clearVal">清除</button>
+</div>
 <br>
-<label for="" id="value">当前答案: {{$randCode->value}}</label>
-<br>
-@if($randCode->is_ok == 0)
-    <label style="color: red">未验证</label>
-@else
-    <label style="color: green">已验证</label>
-@endif
-<br>
-<form action="" method="post">
-    {{csrf_field()}}
-    <label for="answer" id="label">请输入答案</label>
-    <input type="text" id="answer" name="answer" value="" required>
-    <button type="button" onclick="$('#answer').val('')">清除</button>
-    <button type="submit">提交答案</button>
-</form>
-
-<a href="{{URL::to('/image/'.($id + 1))}}">下一张</a>
-<script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script>
-
+<script src="https://cdn.bootcss.com/vue/2.5.13/vue.min.js"></script>
 <script>
     var xSpan = 0;
     var ySpan = 0;
@@ -40,16 +27,27 @@
             ySpan = event.clientY;
         }
     };
-    $('#image').on('click', function () {
+    var vue = new Vue({
+        el: '#div',
+        data: {
+            val: ''
+        },
+        methods: {
+            imageClick: function () {
+                if (vue.val === '') {
 
-        var text = $('#answer').val();
-        if (text == '') {
+                    vue.val = xSpan + ',' + (ySpan - 30);
+                } else {
 
-            $('#answer').val(xSpan + "," + (ySpan-30))
-        } else {
-            $('#answer').val(text + "," + xSpan + "," + (ySpan-30))
+                    vue.val += ',' + xSpan + ',' + (ySpan - 30);
+                }
+            },
+            clearVal: function () {
+                vue.val = '';
+            }
         }
-    })
+    });
+
 </script>
 </body>
 </html>
