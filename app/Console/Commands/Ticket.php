@@ -543,7 +543,7 @@ class Ticket extends Command
             curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
         }
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, $follow);
-
+        curl_setopt($curl, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36');
         $res = curl_exec($curl);
         if (curl_getinfo($curl, CURLINFO_HTTP_CODE) != 200) {
 
@@ -599,7 +599,7 @@ class Ticket extends Command
                 $this->error('验证码获取失败,准备重试');
                 goto GetYan;
             }
-            file_put_contents(app()->publicPath().'/code.jpeg',$body);
+            file_put_contents(app()->publicPath() . '/code.jpeg', $body);
             $this->info('打开页面，单击获取坐标');
             $answer = $this->ask('请输入坐标');
             //验证码 验证
