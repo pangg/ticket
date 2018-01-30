@@ -121,8 +121,6 @@ class Ticket extends Command
         $body = '';
         $train_date = $this->ask('请输入去程日期 格式：' . date('Y-m-d'));
         $back_train_date = $this->ask('请输入反程日期 格式：' . date('Y-m-d'));
-//        $train_date = '2018-02-10';
-//        $back_train_date = '2018-02-10';
         $from_name = '';
         $from_code = '';
         $to_name = '';
@@ -130,7 +128,6 @@ class Ticket extends Command
         while (true) {
 
             $from_name = $this->ask('从哪里出发?');
-//            $from_name = '深圳';
             $v = Config::get('ticket.address.' . $from_name);
             if ($v != null) {
 
@@ -142,7 +139,6 @@ class Ticket extends Command
         while (true) {
 
             $to_name = $this->ask('到哪里去?');
-//            $to_name = '龙南';
             $v = Config::get('ticket.address.' . $to_name);
             if ($v != null) {
 
