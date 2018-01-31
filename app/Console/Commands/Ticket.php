@@ -115,7 +115,7 @@ class Ticket extends Command
     {
         //
         $username = $this->ask('12306 用户名');
-        $password = $this->ask('12306 密码');
+        $password = $this->secret('12306 密码');
         $cookieArray = [];
         $head = '';
         $body = '';
