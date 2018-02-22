@@ -165,6 +165,7 @@ class Ticket extends Command
                 $headCol = [
                     '序号',
                     '车次',
+                    '出发站 -> 到达站',
                     '出发时间',
                     '到达时间',
                     '历时',
@@ -192,6 +193,7 @@ class Ticket extends Command
                     $tripsResult[] = [
                         'index' => $tripsResultIndex,
                         'cc' => $d[3],  //车次
+                        'cfdd'=> $tripsJson['data']['map'][$d[6]].' -> '.$tripsJson['data']['map'][$d[7]],
                         'cf' => $d[8],  //出发时间
                         'dd' => $d[9],  //到达时间
                         'ls' => $d[10], //历时
@@ -475,7 +477,7 @@ class Ticket extends Command
                                     }
                                     $this->info('confirm : ' . $body);
                                     $confirmSingleForQueueRes = json_decode($body, true);
-                                    if ($confirmSingleForQueueRes['httpstatus'] == 200 && $confirmSingleForQueueRes['status']['submitStatus'] == true) {
+                                    if ($confirmSingleForQueueRes['httpstatus'] == 200 && $confirmSingleForQueueRes['data']['submitStatus'] == true) {
 
                                         $this->info('订单完成 : confirmSingleForQueue');
                                         return true;
